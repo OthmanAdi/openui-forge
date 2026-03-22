@@ -1,0 +1,216 @@
+// OpenUI backend handler — Go / net/http
+//
+// Build and run:
+//   go build -o server . && ./server
+//
+// The frontend expects OpenAI-compatible NDJSON streaming at POST /api/chat.
+//
+// -------------------------------------------------------------------------
+// go.mod contents (place in same directory):
+// -------------------------------------------------------------------------
+// module ${MODULE_PATH}
+//
+// go 1.22
+//
+// (no external dependencies — uses only the standard library and raw HTTP
+//  calls to the OpenAI API)
+// -------------------------------------------------------------------------
+
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// systemPrompt is loaded once at startup from the generated prompt file.
+var systemPrompt string
+
+func init() {
+	promptPath := filepath.Join("src", "generated", "system-prompt.txt")
+	data, err := os.ReadFile(promptPath)
+	if err != nil {
+		log.Fatalf("failed to read system prompt from %s: %v", promptPath, err)
+	}
+	systemPrompt = string(data)
+}
+
+// ---------------------------------------------------------------------------
+// Types matching the OpenAI Chat Completions API
+// ---------------------------------------------------------------------------
+
+type chatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type chatRequest struct {
+	Messages []chatMessage `json:"messages"`
+}
+
+type openAIRequest struct {
+	Model    string        `json:"model"`
+	Stream   bool          `json:"stream"`
+	Messages []chatMessage `json:"messages"`
+}
+
+// ---------------------------------------------------------------------------
+// CORS middleware
+// ---------------------------------------------------------------------------
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "${FRONTEND_ORIGIN}")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Chat handler
+// ---------------------------------------------------------------------------
+
+func chatHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req chatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid JSON body"}`, http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if len(req.Messages) == 0 {
+		http.Error(w, `{"error":"messages must be a non-empty array"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Build the OpenAI API request with the system prompt prepended
+	allMessages := append(
+		[]chatMessage{{Role: "system", Content: systemPrompt}},
+		req.Messages...,
+	)
+
+	openAIBody, err := json.Marshal(openAIRequest{
+		Model:    "${MODEL}",
+		Stream:   true,
+		Messages: allMessages,
+	})
+	if err != nil {
+		http.Error(w, `{"error":"failed to marshal request"}`, http.StatusInternalServerError)
+		return
+	}
+
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		http.Error(w, `{"error":"OPENAI_API_KEY not set"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Call the OpenAI streaming API directly via HTTP
+	apiReq, err := http.NewRequestWithContext(
+		r.Context(),
+		http.MethodPost,
+		"https://api.openai.com/v1/chat/completions",
+		bytes.NewReader(openAIBody),
+	)
+	if err != nil {
+		http.Error(w, `{"error":"failed to create API request"}`, http.StatusInternalServerError)
+		return
+	}
+	apiReq.Header.Set("Content-Type", "application/json")
+	apiReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	apiResp, err := http.DefaultClient.Do(apiReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"OpenAI request failed: %s"}`, err.Error()), http.StatusBadGateway)
+		return
+	}
+	defer apiResp.Body.Close()
+
+	if apiResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(apiResp.Body)
+		http.Error(w, fmt.Sprintf(`{"error":"OpenAI returned %d: %s"}`, apiResp.StatusCode, string(body)), apiResp.StatusCode)
+		return
+	}
+
+	// Stream the SSE response through to the client.
+	// OpenAI returns SSE lines like "data: {...}\n\n". We pass them through
+	// so the client-side openAIReadableStreamAdapter can parse them.
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, `{"error":"streaming not supported"}`, http.StatusInternalServerError)
+		return
+	}
+
+	scanner := bufio.NewScanner(apiResp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Skip empty lines and the final [DONE] marker
+		if line == "" {
+			continue
+		}
+		if strings.TrimSpace(line) == "data: [DONE]" {
+			// Write the [DONE] marker so the client knows the stream ended
+			fmt.Fprintf(w, "%s\n\n", line)
+			flusher.Flush()
+			break
+		}
+
+		// Pass SSE lines through verbatim
+		fmt.Fprintf(w, "%s\n", line)
+		// Add an extra newline after data lines to maintain SSE framing
+		if strings.HasPrefix(line, "data:") {
+			fmt.Fprint(w, "\n")
+		}
+		flusher.Flush()
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("[chat] stream read error: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "${PORT}"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/chat", chatHandler)
+
+	handler := corsMiddleware(mux)
+
+	log.Printf("OpenUI backend listening on :%s", port)
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
+}

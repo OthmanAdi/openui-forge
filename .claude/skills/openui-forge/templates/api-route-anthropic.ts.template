@@ -1,0 +1,128 @@
+// Next.js App Router API route — Anthropic backend
+// File: app/api/chat/route.ts
+//
+// OpenUI's client-side adapter (openAIReadableStreamAdapter) expects
+// OpenAI-compatible NDJSON. This route converts Anthropic's streaming
+// events into that format so the frontend works without changes.
+
+import { NextRequest } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const systemPrompt = readFileSync(
+  join(process.cwd(), "src/generated/system-prompt.txt"),
+  "utf-8"
+);
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+// ---------------------------------------------------------------------------
+// Helpers: convert Anthropic stream events -> OpenAI NDJSON chunks
+// ---------------------------------------------------------------------------
+
+function openAIChunk(
+  id: string,
+  content: string,
+  finishReason: string | null
+): string {
+  // Each line of NDJSON is a complete JSON object followed by a newline.
+  return JSON.stringify({
+    id,
+    object: "chat.completion.chunk",
+    choices: [
+      {
+        index: 0,
+        delta: content ? { content } : {},
+        finish_reason: finishReason,
+      },
+    ],
+  }) + "\n";
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+export async function POST(req: NextRequest) {
+  try {
+    const { messages } = await req.json();
+
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "messages must be an array" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Anthropic uses a top-level `system` param rather than a system message
+    // in the messages array. Filter it out and pass separately.
+    const filteredMessages = messages
+      .filter((m: { role: string }) => m.role !== "system")
+      .map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+    const stream = anthropic.messages.stream({
+      model: "${MODEL}",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: filteredMessages,
+    });
+
+    // A unique ID for this completion, matching OpenAI's format
+    const completionId = `chatcmpl-${Date.now()}`;
+
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+
+        try {
+          for await (const event of stream) {
+            // Anthropic emits several event types. We only need the text deltas.
+            if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "text_delta"
+            ) {
+              const chunk = openAIChunk(
+                completionId,
+                event.delta.text,
+                null
+              );
+              controller.enqueue(encoder.encode(chunk));
+            }
+          }
+
+          // Final chunk signals completion
+          const finalChunk = openAIChunk(completionId, "", "stop");
+          controller.enqueue(encoder.encode(finalChunk));
+          controller.close();
+        } catch (err) {
+          console.error("[chat] Anthropic stream error:", err);
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    console.error("[chat] Anthropic error:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}

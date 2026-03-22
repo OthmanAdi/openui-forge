@@ -1,0 +1,141 @@
+"""
+FastAPI backend for OpenUI — Python / OpenAI SDK
+Run: uvicorn handler:app --reload --port 8000
+
+The frontend expects OpenAI-compatible NDJSON streaming at POST /api/chat.
+"""
+
+import json
+import time
+from pathlib import Path
+from typing import AsyncGenerator
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from openai import AsyncOpenAI
+
+# ---------------------------------------------------------------------------
+# Anthropic alternative (uncomment and swap the streaming section below)
+# ---------------------------------------------------------------------------
+# from anthropic import AsyncAnthropic
+# anthropic_client = AsyncAnthropic()
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+SYSTEM_PROMPT_PATH = Path(__file__).parent / "src" / "generated" / "system-prompt.txt"
+system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+
+client = AsyncOpenAI()
+
+app = FastAPI(title="${PROJECT_NAME} API")
+
+# CORS — allow the Next.js dev server and any local frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["${FRONTEND_ORIGIN}"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# OpenAI NDJSON chunk helper
+# ---------------------------------------------------------------------------
+
+def openai_chunk(completion_id: str, content: str, finish_reason: str | None) -> str:
+    """Build one line of OpenAI-compatible NDJSON."""
+    return json.dumps({
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"content": content} if content else {},
+                "finish_reason": finish_reason,
+            }
+        ],
+    }) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Streaming generators
+# ---------------------------------------------------------------------------
+
+async def stream_openai(messages: list[dict]) -> AsyncGenerator[str, None]:
+    """Stream from OpenAI and yield NDJSON chunks."""
+    completion_id = f"chatcmpl-{int(time.time() * 1000)}"
+
+    stream = await client.chat.completions.create(
+        model="${MODEL}",
+        stream=True,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            *messages,
+        ],
+    )
+
+    async for chunk in stream:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        if delta and delta.content:
+            yield openai_chunk(completion_id, delta.content, None)
+
+    yield openai_chunk(completion_id, "", "stop")
+
+
+# ---------------------------------------------------------------------------
+# Anthropic variant (uncomment to use)
+# ---------------------------------------------------------------------------
+# async def stream_anthropic(messages: list[dict]) -> AsyncGenerator[str, None]:
+#     """Stream from Anthropic and convert to OpenAI NDJSON."""
+#     completion_id = f"chatcmpl-{int(time.time() * 1000)}"
+#
+#     # Filter out system messages — Anthropic takes system as a top-level param
+#     filtered = [m for m in messages if m["role"] != "system"]
+#
+#     async with anthropic_client.messages.stream(
+#         model="${MODEL}",
+#         max_tokens=4096,
+#         system=system_prompt,
+#         messages=filtered,
+#     ) as stream:
+#         async for text in stream.text_stream:
+#             yield openai_chunk(completion_id, text, None)
+#
+#     yield openai_chunk(completion_id, "", "stop")
+
+
+# ---------------------------------------------------------------------------
+# Route
+# ---------------------------------------------------------------------------
+
+@app.post("/api/chat")
+async def chat(request: Request):
+    body = await request.json()
+    messages = body.get("messages", [])
+
+    if not isinstance(messages, list):
+        return {"error": "messages must be an array"}
+
+    return StreamingResponse(
+        stream_openai(messages),
+        # Swap to stream_anthropic(messages) for Claude
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=${PORT})

@@ -1,0 +1,13 @@
+import { defineComponent } from "@openuidev/react-lang";
+import { z } from "zod";
+
+export const ${COMPONENT_NAME} = defineComponent({
+  name: "${COMPONENT_NAME}",
+  description: "${DESCRIPTION}",
+  props: z.object({
+    ${PROPS}
+  }),
+  component: ({ props }) => (
+    ${JSX}
+  ),
+});

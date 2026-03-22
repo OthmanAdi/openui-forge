@@ -1,0 +1,17 @@
+{
+  "name": "openui-forge",
+  "version": "1.0.0",
+  "description": "Build generative UI with OpenUI — any LLM provider, any backend language. Scaffold, integrate, validate.",
+  "author": {
+    "name": "OthmanAdi",
+    "url": "https://github.com/OthmanAdi"
+  },
+  "repository": "https://github.com/OthmanAdi/openui-forge",
+  "license": "MIT",
+  "keywords": [
+    "openui", "generative-ui", "genui", "streaming-ui", "react",
+    "claude", "openai", "anthropic", "langchain", "vercel-ai",
+    "python", "go", "rust", "agent-skill", "claude-code",
+    "cursor", "codex", "gemini", "ai-ui", "llm-ui"
+  ]
+}

@@ -1,0 +1,53 @@
+"use client";
+
+import "@openuidev/react-ui/styles.css";
+
+import { FullScreen } from "@openuidev/react-ui";
+import {
+  openAIReadableStreamAdapter,
+  openAIMessageFormat,
+} from "@openuidev/react-headless";
+import { ${LIBRARY_NAME} } from "${LIBRARY_IMPORT_PATH}";
+
+// FullScreen renders a full-viewport chat interface with built-in message
+// history, input field, and streaming display. processMessage connects it
+// to your backend; the adapter + messageFormat pair tell it how to parse
+// the streaming response.
+
+export default function ${PAGE_NAME}() {
+  return (
+    <FullScreen
+      title="${APP_TITLE}"
+      description="${APP_DESCRIPTION}"
+      componentLibrary={${LIBRARY_NAME}}
+      // processMessage is called each time the user sends a message.
+      // It must return a ReadableStream of bytes (the raw fetch body).
+      processMessage={async (messages) => {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Chat request failed: ${response.status} ${response.statusText}`
+          );
+        }
+
+        if (!response.body) {
+          throw new Error("Response body is null");
+        }
+
+        return response.body;
+      }}
+      // The adapter converts the raw byte stream into parsed tokens.
+      // openAIReadableStreamAdapter handles OpenAI-compatible NDJSON streams.
+      adapter={openAIReadableStreamAdapter}
+      // The message format controls how conversation history is serialized
+      // before being sent to processMessage. openAIMessageFormat produces
+      // the { role, content } shape that OpenAI (and compatible) APIs expect.
+      messageFormat={openAIMessageFormat}
+    />
+  );
+}

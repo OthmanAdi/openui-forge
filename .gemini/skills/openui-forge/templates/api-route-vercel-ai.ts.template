@@ -1,0 +1,62 @@
+// Next.js App Router API route — Vercel AI SDK backend
+// File: app/api/chat/route.ts
+//
+// The Vercel AI SDK handles streaming, format conversion, and response
+// construction in a single call. This is the simplest backend option.
+
+import { streamText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+// To use Anthropic instead:
+// import { createAnthropic } from "@ai-sdk/anthropic";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const systemPrompt = readFileSync(
+  join(process.cwd(), "src/generated/system-prompt.txt"),
+  "utf-8"
+);
+
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Anthropic alternative:
+// const anthropic = createAnthropic({
+//   apiKey: process.env.ANTHROPIC_API_KEY,
+// });
+
+export async function POST(req: Request) {
+  try {
+    const { messages } = await req.json();
+
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "messages must be an array" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const result = streamText({
+      model: openai("${MODEL}"),
+      // Anthropic alternative:
+      // model: anthropic("${MODEL}"),
+      system: systemPrompt,
+      messages,
+    });
+
+    // toUIMessageStreamResponse() returns a Response with the correct
+    // Content-Type and streaming body. It is the newer API (v4+).
+    // For older versions of the Vercel AI SDK, use toAIStreamResponse().
+    return result.toUIMessageStreamResponse();
+  } catch (error) {
+    console.error("[chat] Vercel AI SDK error:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write(*component*)",
+        "command": "echo '[OpenUI Forge] Component written. Remember to add it to your library and regenerate the system prompt with /openui:prompt'",
+        "timeout": 5000
+      },
+      {
+        "matcher": "Write(*library*)",
+        "command": "echo '[OpenUI Forge] Library updated. Regenerate system prompt: npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prompt.txt'",
+        "timeout": 5000
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(rm*system-prompt*)",
+        "command": "echo '[OpenUI Forge] WARNING: Deleting system prompt file. The frontend will break without it.' && exit 1",
+        "timeout": 5000
+      }
+    ]
+  }
+}

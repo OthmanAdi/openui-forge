@@ -1,0 +1,211 @@
+// OpenUI backend handler — Rust / Axum
+//
+// Build and run:
+//   cargo build --release && ./target/release/${PROJECT_NAME}
+//
+// The frontend expects OpenAI-compatible SSE streaming at POST /api/chat.
+//
+// -------------------------------------------------------------------------
+// Cargo.toml contents:
+// -------------------------------------------------------------------------
+// [package]
+// name = "${PROJECT_NAME}"
+// version = "0.1.0"
+// edition = "2021"
+//
+// [dependencies]
+// axum = { version = "0.8", features = ["macros"] }
+// tokio = { version = "1", features = ["full"] }
+// serde = { version = "1", features = ["derive"] }
+// serde_json = "1"
+// reqwest = { version = "0.12", features = ["stream", "json"] }
+// futures = "0.3"
+// async-stream = "0.3"
+// tower-http = { version = "0.6", features = ["cors"] }
+// -------------------------------------------------------------------------
+
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{
+        sse::{Event, Sse},
+        IntoResponse, Response,
+    },
+    routing::post,
+    Json, Router,
+};
+use futures::stream::Stream;
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use tokio::io::AsyncBufReadExt;
+use tower_http::cors::{Any, CorsLayer};
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct ChatRequest {
+    messages: Vec<ChatMessage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ChatMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Serialize)]
+struct OpenAIRequest {
+    model: String,
+    stream: bool,
+    messages: Vec<ChatMessage>,
+}
+
+#[derive(Clone)]
+struct AppState {
+    system_prompt: String,
+    http_client: Client,
+}
+
+// ---------------------------------------------------------------------------
+// Error type
+// ---------------------------------------------------------------------------
+
+struct AppError(String);
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let body = serde_json::json!({ "error": self.0 });
+        (StatusCode::INTERNAL_SERVER_ERROR, Json(body)).into_response()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Chat handler
+// ---------------------------------------------------------------------------
+
+async fn chat_handler(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<ChatRequest>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+    if req.messages.is_empty() {
+        return Err(AppError("messages must be a non-empty array".into()));
+    }
+
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| AppError("OPENAI_API_KEY not set".into()))?;
+
+    // Prepend the system prompt
+    let mut all_messages = vec![ChatMessage {
+        role: "system".into(),
+        content: state.system_prompt.clone(),
+    }];
+    all_messages.extend(req.messages);
+
+    let openai_req = OpenAIRequest {
+        model: "${MODEL}".into(),
+        stream: true,
+        messages: all_messages,
+    };
+
+    // Call OpenAI streaming API via reqwest
+    let response = state
+        .http_client
+        .post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&openai_req)
+        .send()
+        .await
+        .map_err(|e| AppError(format!("OpenAI request failed: {}", e)))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "unknown error".into());
+        return Err(AppError(format!("OpenAI returned {}: {}", status, body)));
+    }
+
+    // Stream SSE events from OpenAI through to the client.
+    // We read the response body line by line and forward SSE data lines.
+    let byte_stream = response.bytes_stream();
+    let reader = tokio_util::io::StreamReader::new(
+        byte_stream.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+    );
+    let buf_reader = tokio::io::BufReader::new(reader);
+
+    let stream = async_stream::stream! {
+        let mut lines = buf_reader.lines();
+
+        while let Ok(Some(line)) = lines.next_line().await {
+            let trimmed = line.trim();
+
+            // Skip empty lines
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Forward data lines as SSE events
+            if let Some(data) = trimmed.strip_prefix("data: ") {
+                if data == "[DONE]" {
+                    // Send the final event and stop
+                    yield Ok(Event::default().data("[DONE]"));
+                    break;
+                }
+
+                // Pass the raw JSON chunk through as an SSE data event
+                yield Ok(Event::default().data(data.to_string()));
+            }
+        }
+    };
+
+    Ok(Sse::new(stream))
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+#[tokio::main]
+async fn main() {
+    // Load the system prompt at startup
+    let prompt_path = std::path::Path::new("src/generated/system-prompt.txt");
+    let system_prompt = std::fs::read_to_string(prompt_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {}", prompt_path.display(), e));
+
+    let state = Arc::new(AppState {
+        system_prompt,
+        http_client: Client::new(),
+    });
+
+    // CORS — allow the frontend dev server
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([axum::http::Method::POST, axum::http::Method::OPTIONS])
+        .allow_headers(Any);
+
+    let app = Router::new()
+        .route("/api/chat", post(chat_handler))
+        .layer(cors)
+        .with_state(state);
+
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(${PORT});
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("OpenUI backend listening on {}", addr);
+
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("failed to bind");
+
+    axum::serve(listener, app)
+        .await
+        .expect("server error");
+}

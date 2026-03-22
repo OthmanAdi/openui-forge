@@ -1,0 +1,172 @@
+// Next.js App Router API route — LangChain backend
+// File: app/api/chat/route.ts
+//
+// Uses LangChain's ChatOpenAI (swap to ChatAnthropic if needed).
+// Converts LangChain's streaming chunks into OpenAI-compatible NDJSON
+// so the frontend openAIReadableStreamAdapter can parse them unchanged.
+
+import { NextRequest } from "next/server";
+import { ChatOpenAI } from "@langchain/openai";
+// To use Anthropic instead, uncomment the next line and comment out ChatOpenAI:
+// import { ChatAnthropic } from "@langchain/anthropic";
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+  BaseMessage,
+} from "@langchain/core/messages";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const systemPrompt = readFileSync(
+  join(process.cwd(), "src/generated/system-prompt.txt"),
+  "utf-8"
+);
+
+// ---------------------------------------------------------------------------
+// Model setup
+// ---------------------------------------------------------------------------
+
+const model = new ChatOpenAI({
+  modelName: "${MODEL}",
+  streaming: true,
+  openAIApiKey: process.env.OPENAI_API_KEY,
+});
+
+// Anthropic alternative:
+// const model = new ChatAnthropic({
+//   modelName: "${MODEL}",
+//   streaming: true,
+//   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+// });
+
+// ---------------------------------------------------------------------------
+// Convert frontend messages to LangChain message objects
+// ---------------------------------------------------------------------------
+
+interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+function toLangChainMessages(messages: ChatMessage[]): BaseMessage[] {
+  return messages.map((m) => {
+    switch (m.role) {
+      case "system":
+        return new SystemMessage(m.content);
+      case "user":
+        return new HumanMessage(m.content);
+      case "assistant":
+        return new AIMessage(m.content);
+      default:
+        return new HumanMessage(m.content);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI-compatible NDJSON chunk builder
+// ---------------------------------------------------------------------------
+
+function openAIChunk(
+  id: string,
+  content: string,
+  finishReason: string | null
+): string {
+  return JSON.stringify({
+    id,
+    object: "chat.completion.chunk",
+    choices: [
+      {
+        index: 0,
+        delta: content ? { content } : {},
+        finish_reason: finishReason,
+      },
+    ],
+  }) + "\n";
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+export async function POST(req: NextRequest) {
+  try {
+    const { messages } = await req.json();
+
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "messages must be an array" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Prepend the system prompt, then convert to LangChain types
+    const langChainMessages = toLangChainMessages([
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ]);
+
+    const completionId = `chatcmpl-${Date.now()}`;
+
+    // model.stream() returns an async iterable of BaseMessageChunk
+    const langChainStream = await model.stream(langChainMessages);
+
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+
+        try {
+          for await (const chunk of langChainStream) {
+            // chunk.content is the streamed text fragment
+            const text =
+              typeof chunk.content === "string"
+                ? chunk.content
+                : Array.isArray(chunk.content)
+                  ? chunk.content
+                      .filter(
+                        (c): c is { type: "text"; text: string } =>
+                          typeof c === "object" && c.type === "text"
+                      )
+                      .map((c) => c.text)
+                      .join("")
+                  : "";
+
+            if (text) {
+              controller.enqueue(
+                encoder.encode(openAIChunk(completionId, text, null))
+              );
+            }
+          }
+
+          // Signal completion
+          controller.enqueue(
+            encoder.encode(openAIChunk(completionId, "", "stop"))
+          );
+          controller.close();
+        } catch (err) {
+          console.error("[chat] LangChain stream error:", err);
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    console.error("[chat] LangChain error:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}

@@ -1,0 +1,75 @@
+import { createLibrary } from "@openuidev/react-lang";
+import { openuiLibrary } from "@openuidev/react-ui";
+
+// Import your custom components
+${COMPONENT_IMPORTS}
+
+// ---------------------------------------------------------------------------
+// Option A: Create a library from scratch
+// Use this when you want full control over which components are available.
+// ---------------------------------------------------------------------------
+export const ${LIBRARY_NAME} = createLibrary({
+  name: "${LIBRARY_NAME}",
+  description: "${LIBRARY_DESCRIPTION}",
+
+  // Components are grouped for LLM discoverability.
+  // The model sees group names + descriptions to decide which components to use.
+  componentGroups: [
+    {
+      name: "Layout",
+      description: "Structural layout primitives for arranging content on screen",
+      components: [
+        // e.g. Container, Grid, Stack, Spacer
+        ${LAYOUT_COMPONENTS}
+      ],
+    },
+    {
+      name: "Data Display",
+      description: "Components for presenting data, text, and media",
+      components: [
+        // e.g. Card, Table, Badge, Avatar
+        ${DATA_DISPLAY_COMPONENTS}
+      ],
+    },
+    {
+      name: "Input",
+      description: "Interactive form controls and user input elements",
+      components: [
+        // e.g. Button, TextField, Select, Checkbox
+        ${INPUT_COMPONENTS}
+      ],
+    },
+    {
+      name: "Feedback",
+      description: "Components that communicate status or results to the user",
+      components: [
+        // e.g. Alert, Toast, Spinner, ProgressBar
+        ${FEEDBACK_COMPONENTS}
+      ],
+    },
+  ],
+});
+
+// ---------------------------------------------------------------------------
+// Option B: Extend the built-in openuiLibrary
+// Use this when you want all default OpenUI components PLUS your own additions.
+// The spread merges the built-in groups with your custom groups.
+// ---------------------------------------------------------------------------
+export const ${EXTENDED_LIBRARY_NAME} = createLibrary({
+  name: "${EXTENDED_LIBRARY_NAME}",
+  description: "Extended library combining OpenUI defaults with custom components",
+
+  componentGroups: [
+    // Spread the built-in library groups so all default components remain available
+    ...openuiLibrary.componentGroups,
+
+    // Then add your own groups
+    {
+      name: "Custom",
+      description: "${CUSTOM_GROUP_DESCRIPTION}",
+      components: [
+        ${CUSTOM_COMPONENTS}
+      ],
+    },
+  ],
+});
