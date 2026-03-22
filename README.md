@@ -7,6 +7,7 @@ Build production generative UI applications with OpenUI. Any LLM provider. Any b
 [![skills.sh weekly downloads](https://img.shields.io/badge/skills.sh-weekly%20downloads-orange)](https://skills.sh/OthmanAdi/openui-forge)
 [![GitHub stars](https://img.shields.io/github/stars/OthmanAdi/openui-forge)](https://github.com/OthmanAdi/openui-forge/stargazers)
 [![Skill Validation](https://github.com/OthmanAdi/openui-forge/actions/workflows/skill-validation.yml/badge.svg)](https://github.com/OthmanAdi/openui-forge/actions/workflows/skill-validation.yml)
+[![Website](https://img.shields.io/badge/website-openui--forge.here.now-E8850C)](https://spruce-prism-8yya.here.now/)
 
 ---
 
