@@ -1,3 +1,7 @@
+<div align="center">
+<img src="media/banner.png" alt="openui-forge" width="100%">
+</div>
+
 # OpenUI Forge
 
 Build production generative UI applications with OpenUI. Any LLM provider. Any backend language. One skill.
