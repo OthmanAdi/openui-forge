@@ -177,5 +177,5 @@ Or at runtime via `openuiChatLibrary.prompt()` as shown in the route.
 | Stream format mismatch | Trying to use `openAIReadableStreamAdapter` with Vercel AI's UI message stream | Drop `streamProtocol`. Use `processMessage` returning `response.body` — the AI SDK stream is consumed natively |
 | Type error on `maxSteps` | `maxSteps` removed in AI SDK v5+ | Import `stepCountIs` from `ai` and use `stopWhen: stepCountIs(3)` |
 | Type error on tool `parameters` | Renamed to `inputSchema` in AI SDK v5+ | Rename `parameters:` to `inputSchema:` in every `tool({...})` definition |
-| Blank response | Wrong export from `@ai-sdk/openai` | Use `openai("gpt-4o")` not `new OpenAI()` |
+| Blank response | Wrong export from `@ai-sdk/openai` | Use `openai("gpt-5.5")` not `new OpenAI()` |
 | Props silently ignored | Passing `messages`/`onSend`/`isLoading` props to `FullScreen` | `FullScreen` does not accept these — use `processMessage` instead |

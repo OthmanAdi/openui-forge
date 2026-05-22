@@ -74,7 +74,7 @@ async def chat(request: Request):
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + body["messages"]
 
     response = client.chat.completions.create(
-        model="gpt-4o", stream=True, messages=messages
+        model=os.getenv("OPENAI_MODEL", "gpt-5.5"), stream=True, messages=messages
     )
 
     def generate():
@@ -116,7 +116,7 @@ async def chat(request: Request):
 
     def generate():
         with client.messages.stream(
-            model="claude-sonnet-4-20250514",
+            model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             max_tokens=4096,
             system=SYSTEM_PROMPT,
             messages=body["messages"],

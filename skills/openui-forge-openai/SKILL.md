@@ -1,6 +1,6 @@
 ---
 name: openui-forge-openai
-description: OpenUI generative UI with OpenAI SDK backend. Streaming chat completions with gpt-4o.
+description: OpenUI generative UI with OpenAI SDK backend. Streaming chat completions with gpt-5.5 (or any current OpenAI-compatible model).
 version: 1.0.0
 author: OthmanAdi
 ---
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   });
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o",
+    model: process.env.OPENAI_MODEL ?? "gpt-5.5",
     stream: true,
     messages: [{ role: "system", content: systemPrompt }, ...messages],
   });

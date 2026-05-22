@@ -109,8 +109,12 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	messages := append([]Message{{Role: "system", Content: systemPrompt}}, req.Messages...)
+	model := os.Getenv("OPENAI_MODEL")
+	if model == "" {
+		model = "gpt-5.5"
+	}
 	body, _ := json.Marshal(map[string]interface{}{
-		"model": "gpt-4o", "stream": true, "messages": messages,
+		"model": model, "stream": true, "messages": messages,
 	})
 
 	apiReq, _ := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewReader(body))

@@ -80,7 +80,7 @@ async def chat(request: Request):
         })
 
     stream = client.chat.completions.create(
-        model="gpt-4o",
+        model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
         messages=api_messages,
         stream=True,
     )
@@ -194,7 +194,7 @@ async def chat(request: Request):
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
         with client.messages.stream(
-            model="claude-sonnet-4-20250514",
+            model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             max_tokens=4096,
             system=system_prompt,
             messages=api_messages,
@@ -266,6 +266,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -343,7 +344,7 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	openaiReq := OpenAIRequest{
-		Model:    "gpt-4o",
+		Model:    cmp.Or(os.Getenv("OPENAI_MODEL"), "gpt-5.5"),
 		Messages: apiMessages,
 		Stream:   true,
 	}
@@ -544,7 +545,7 @@ async fn chat_handler(Json(body): Json<ChatRequest>) -> impl IntoResponse {
     }
 
     let openai_req = OpenAIRequest {
-        model: "gpt-4o".to_string(),
+        model: std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.5".into()),
         messages: api_messages,
         stream: true,
     };

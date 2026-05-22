@@ -43,7 +43,7 @@ import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
-const model = new ChatOpenAI({ modelName: "gpt-4o", streaming: true });
+const model = new ChatOpenAI({ model: process.env.OPENAI_MODEL ?? "gpt-5.5", streaming: true });
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -100,7 +100,7 @@ Replace the model initialization and import:
 import { ChatAnthropic } from "@langchain/anthropic";
 
 const model = new ChatAnthropic({
-  modelName: "claude-sonnet-4-20250514",
+  model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
   maxTokens: 4096,
   streaming: true,
 });

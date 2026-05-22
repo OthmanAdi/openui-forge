@@ -115,7 +115,7 @@ async fn chat_handler(
             .post("https://api.openai.com/v1/chat/completions")
             .bearer_auth(&api_key)
             .json(&serde_json::json!({
-                "model": "gpt-4o",
+                "model": std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.5".into()),
                 "stream": true,
                 "messages": messages,
             }))
