@@ -193,5 +193,24 @@ jobs:
             exit 1
           fi
 
-      - name: Install skills CLI and verify skill can be added
-        run: npx -y skills add . --skill openui-forge -g -y
+      - name: Install skills CLI and verify all skill variants can be added (registers on skills.sh)
+        # Using the public GitHub URL (not `.`) so each install is attributed to
+        # the repo on skills.sh. skills.sh is a telemetry index: a per-skill page
+        # only appears after the first `npx skills add <url> --skill <name>` runs.
+        # Iterating every variant here makes the published-variants set self-healing.
+        run: |
+          SKILLS=(
+            "openui-forge"
+            "openui-forge-openai"
+            "openui-forge-anthropic"
+            "openui-forge-langchain"
+            "openui-forge-vercel"
+            "openui-forge-python"
+            "openui-forge-go"
+            "openui-forge-rust"
+            "openui-forge-zh"
+          )
+          for skill in "${SKILLS[@]}"; do
+            echo "--- Installing $skill ---"
+            npx -y skills add https://github.com/OthmanAdi/openui-forge --skill "$skill" -g -y
+          done

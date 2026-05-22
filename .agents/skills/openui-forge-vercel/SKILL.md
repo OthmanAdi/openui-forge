@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai(process.env.OPENAI_MODEL ?? "gpt-5.5"),
     system: systemPrompt,
     messages,
   });
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 
 ```typescript
 import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
-import { streamText, tool } from "ai";
+import { streamText, tool, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 
@@ -77,13 +77,13 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai(process.env.OPENAI_MODEL ?? "gpt-5.5"),
     system: systemPrompt,
     messages,
     tools: {
       getWeather: tool({
         description: "Get current weather for a city",
-        parameters: z.object({
+        inputSchema: z.object({
           city: z.string().describe("City name"),
         }),
         execute: async ({ city }) => {
@@ -91,7 +91,8 @@ export async function POST(req: Request) {
         },
       }),
     },
-    maxSteps: 3,
+    // AI SDK v5+: stopWhen replaces the removed `maxSteps` option.
+    stopWhen: stepCountIs(3),
   });
 
   return result.toUIMessageStreamResponse();
@@ -165,7 +166,8 @@ Or at runtime via `openuiChatLibrary.prompt()` as shown in the route.
 - [ ] Frontend uses `processMessage` returning `response.body` (the Vercel AI SDK stream is consumed natively, no `streamProtocol` needed)
 - [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
 - [ ] CSS import in root layout
-- [ ] If using tools: `maxSteps` is set, tool results feed back to model
+- [ ] If using tools: `stopWhen: stepCountIs(n)` is set (AI SDK v5+ replacement for the removed `maxSteps`), tool results feed back to model
+- [ ] Tools declared with `inputSchema:` (v5+ rename of `parameters:`)
 
 ## Error Patterns
 
@@ -173,6 +175,7 @@ Or at runtime via `openuiChatLibrary.prompt()` as shown in the route.
 |-------|-------|-----|
 | `ai` module not found | Missing Vercel AI SDK | `npm install ai @ai-sdk/openai` |
 | Stream format mismatch | Trying to use `openAIReadableStreamAdapter` with Vercel AI's UI message stream | Drop `streamProtocol`. Use `processMessage` returning `response.body` — the AI SDK stream is consumed natively |
-| Tools not executing | Missing `maxSteps` | Add `maxSteps: 3` (or higher) to `streamText` options |
+| Type error on `maxSteps` | `maxSteps` removed in AI SDK v5+ | Import `stepCountIs` from `ai` and use `stopWhen: stepCountIs(3)` |
+| Type error on tool `parameters` | Renamed to `inputSchema` in AI SDK v5+ | Rename `parameters:` to `inputSchema:` in every `tool({...})` definition |
 | Blank response | Wrong export from `@ai-sdk/openai` | Use `openai("gpt-4o")` not `new OpenAI()` |
 | Props silently ignored | Passing `messages`/`onSend`/`isLoading` props to `FullScreen` | `FullScreen` does not accept these — use `processMessage` instead |
