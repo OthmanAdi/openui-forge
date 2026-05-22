@@ -17,7 +17,7 @@ Build production generative UI applications with OpenUI. Any LLM provider. Any b
 
 ## What is this?
 
-OpenUI Forge is an agent skill that helps you build generative UI applications using [OpenUI](https://docs.openui.dev/), a streaming-first framework where LLMs output a compact DSL (OpenUI Lang) instead of JSON or HTML. The result: 67% fewer tokens, progressive rendering as tokens arrive, and graceful handling of hallucinated components.
+OpenUI Forge is an agent skill that helps you build generative UI applications using [OpenUI](https://docs.thesys.dev/), a streaming-first framework where LLMs output a compact DSL (OpenUI Lang) instead of JSON or HTML. The result: 67% fewer tokens, progressive rendering as tokens arrive, and graceful handling of hallucinated components.
 
 This skill covers the full development lifecycle: scaffolding new projects, creating components with Zod schemas, integrating any LLM backend (OpenAI, Anthropic, LangChain, Vercel AI), supporting non-JS backends (Python, Go, Rust), and validating the entire stack.
 
@@ -114,8 +114,8 @@ Live UI          <-- Parser          <-- Adapter
 
 ## Links
 
-- [OpenUI Documentation](https://docs.openui.dev/)
-- [OpenUI GitHub](https://github.com/openuidev)
+- [OpenUI Documentation](https://docs.thesys.dev/)
+- [OpenUI GitHub](https://github.com/thesysdev/openui)
 - [skills.sh](https://skills.sh/)
 - [Author Portfolio](https://othmanadi.com)
 
