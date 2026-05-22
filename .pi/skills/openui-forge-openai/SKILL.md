@@ -16,15 +16,17 @@ Build generative UI apps with OpenUI + OpenAI SDK. One backend, one adapter, str
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 19
+- Node.js >= 18, React >= 18.3.1 (19+ recommended)
 - `OPENAI_API_KEY` environment variable set
+- Optional: `OPENAI_BASE_URL` to route via an OpenAI-compatible provider (Gemini, OpenRouter, xAI, DeepSeek, etc.) without code changes
+- Optional: `OPENAI_MODEL` to pin a specific model (defaults to `gpt-5.5`)
 - Next.js project (App Router recommended)
 
 ## Quick Start
 
 1. Install dependencies:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod openai
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod openai
 ```
 2. Add the CSS import to `app/layout.tsx`:
 ```tsx
@@ -128,7 +130,7 @@ npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prom
 - [ ] API route returns `response.toReadableStream()` with `application/x-ndjson` content type
 - [ ] Frontend uses `streamProtocol={openAIReadableStreamAdapter()}` and `openAIMessageFormat`
 - [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
-- [ ] React >= 19 installed
+- [ ] React >= 18.3.1 installed (peer accepts `^18.3.1 || ^19.0.0`)
 
 ## Error Patterns
 

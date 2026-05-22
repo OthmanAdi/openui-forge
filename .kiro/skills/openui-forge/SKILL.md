@@ -41,7 +41,8 @@ Live UI          <-- Parser          <-- Adapter
 
 | Package | Purpose |
 |---------|---------|
-| `@openuidev/react-lang` | Core: defineComponent, createLibrary, Renderer, prompt generation |
+| `@openuidev/lang-core` | Framework-agnostic substrate: parser, validation, prompt generation (every binding sits on this) |
+| `@openuidev/react-lang` | React binding: defineComponent, createLibrary, Renderer |
 | `@openuidev/react-headless` | State: ChatProvider, streaming adapters, message formats (Zustand) |
 | `@openuidev/react-ui` | UI: FullScreen/Copilot/BottomTray layouts, 30+ built-in components, theming |
 | `@openuidev/cli` | CLI: scaffold apps, generate system prompts |
@@ -49,7 +50,7 @@ Live UI          <-- Parser          <-- Adapter
 ## Prerequisites
 
 - Node.js >= 18
-- React >= 19 (peer dependency of all @openuidev packages)
+- React 18.3.1 or newer (peer dep is `^18.3.1 || ^19.0.0`; 19+ recommended)
 - One LLM provider configured (OpenAI, Anthropic, or other)
 - For non-JS backends: `npx @openuidev/cli` to pre-generate system prompt as .txt file
 
@@ -95,7 +96,7 @@ Existing project detected?
 +-- YES --> What framework?
     |
     +-- Next.js
-    |   1. npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod
+    |   1. npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod
     |   2. Add CSS import to root layout:
     |      import "@openuidev/react-ui/components.css";
     |   3. Create component library file (or use built-in openuiChatLibrary from @openuidev/react-ui/genui-lib)
@@ -229,7 +230,11 @@ Rust (Axum)
 
 Run /openui:validate to verify the full integration.
 
-**CRITICAL RULE:** For ALL non-OpenAI backends, the backend MUST output OpenAI-compatible NDJSON. The frontend openAIReadableStreamAdapter() expects each line to be:
+**CRITICAL RULE:** Backend stream format and frontend `streamProtocol` must match. SSE backends (`data: {json}\n\n`) pair with `openAIAdapter()`. NDJSON backends (one raw JSON per line) pair with `openAIReadableStreamAdapter()`.
+
+**OpenAI-compatible providers:** the OpenAI client honors a `OPENAI_BASE_URL` env var, so the same code paths drive Gemini, OpenRouter, xAI, DeepSeek, and any other OpenAI-compatible endpoint. Add `OPENAI_BASE_URL=https://...` to `.env` and the existing OpenAI SDK call routes to that endpoint instead.
+
+**Legacy NDJSON path (kept for the OpenAI Node SDK's `response.toReadableStream()` flow):** For ALL non-OpenAI backends, the backend MUST output OpenAI-compatible NDJSON or SSE matching the chosen adapter. The frontend openAIReadableStreamAdapter() expects each line to be:
 
 ```json
 {"id":"...","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"token text"},"finish_reason":null}]}
@@ -286,8 +291,8 @@ Full validation pipeline.
 
 | # | Check | How | Fix |
 |---|-------|-----|-----|
-| 1 | Dependencies installed | `npm ls @openuidev/react-lang` | `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk` |
-| 2 | React >= 19 | `npm ls react` | `npm install react@latest react-dom@latest` |
+| 1 | Dependencies installed | `npm ls @openuidev/react-lang` | `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang |
+| 2 | React >= 18.3.1 | `npm ls react` | `npm install react@latest react-dom@latest` (peer accepts `^18.3.1 || ^19.0.0`) |
 | 3 | Component library exists | grep for `createLibrary` | Run /openui:component |
 | 4 | Zod .describe() on all props | AST check or grep | Add `.describe("...")` to every Zod field |
 | 5 | System prompt exists | find `**/system-prompt.txt` | Run /openui:prompt |
@@ -325,7 +330,7 @@ s1 = Series("Revenue", [10, 20, 30])  # Forward references OK (hoisted)
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| React 19 peer dependency | OpenUI requires React >= 19 | `npm i react@latest react-dom@latest` |
+| React peer warning | OpenUI requires React >= 18.3.1 | `npm i react@latest react-dom@latest` |
 | Components not rendering | Missing CSS import | Add `@openuidev/react-ui/components.css` to root layout |
 | Stream hangs / no output | Wrong streamProtocol for backend format | SSE -> `openAIAdapter()`; NDJSON -> `openAIReadableStreamAdapter()` |
 | Props silently ignored on FullScreen | Using `adapter=` instead of `streamProtocol=` | Rename prop to `streamProtocol` and call the adapter as a function |

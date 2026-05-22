@@ -16,7 +16,7 @@ Build generative UI apps with OpenUI + Anthropic Claude. Converts Anthropic stre
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 19
+- Node.js >= 18, React >= 18.3.1 (19+ recommended)
 - `ANTHROPIC_API_KEY` environment variable set
 - Next.js project (App Router recommended)
 
@@ -24,7 +24,7 @@ Build generative UI apps with OpenUI + Anthropic Claude. Converts Anthropic stre
 
 1. Install dependencies:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod @anthropic-ai/sdk
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod @anthropic-ai/sdk
 ```
 2. Add the CSS import to `app/layout.tsx`:
 ```tsx

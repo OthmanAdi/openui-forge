@@ -16,7 +16,7 @@ Build generative UI apps with OpenUI + LangChain. Stream from ChatOpenAI or Chat
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 19
+- Node.js >= 18, React >= 18.3.1 (19+ recommended)
 - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set
 - Next.js project (App Router recommended)
 
@@ -24,7 +24,7 @@ Build generative UI apps with OpenUI + LangChain. Stream from ChatOpenAI or Chat
 
 1. Install dependencies (pick one or both LLM providers):
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod @langchain/openai @langchain/core
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod @langchain/openai @langchain/core
 # For Anthropic: npm install @langchain/anthropic
 ```
 2. Add the CSS import to `app/layout.tsx`:

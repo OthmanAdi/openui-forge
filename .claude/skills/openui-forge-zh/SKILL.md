@@ -49,7 +49,7 @@ OpenUI 是「生成式 UI 的开放标准」(Open Standard for Generative UI)：
 ## 前置要求
 
 - Node.js >= 18
-- React >= 19（所有 @openuidev 包的 peer dependency）
+- React >= 18.3.1（@openuidev 包的 peer 范围为 `^18.3.1 || ^19.0.0`，推荐 19+）
 - 至少配置一个 LLM 提供商（OpenAI、Anthropic 或其他）
 - 非 JS 后端需通过 `npx @openuidev/cli` 预生成系统提示词为 .txt 文件
 
@@ -95,7 +95,7 @@ CSS 导入       [已配置 / 缺失]
 +-- 是 --> 使用什么框架?
     |
     +-- Next.js
-    |   1. npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod
+    |   1. npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod
     |   2. 在根布局中添加 CSS 导入:
     |      import "@openuidev/react-ui/components.css";
     |   3. 创建组件库文件（或使用内置的 openuiChatLibrary，从 @openuidev/react-ui/genui-lib 导入）
@@ -286,8 +286,8 @@ const systemPrompt = myLibrary.prompt({
 
 | # | 检查项 | 检查方式 | 修复方法 |
 |---|--------|----------|----------|
-| 1 | 依赖已安装 | `npm ls @openuidev/react-lang` | `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk` |
-| 2 | React >= 19 | `npm ls react` | `npm install react@latest react-dom@latest` |
+| 1 | 依赖已安装 | `npm ls @openuidev/react-lang` | `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang |
+| 2 | React >= 18.3.1 | `npm ls react` | `npm install react@latest react-dom@latest`（peer 范围 `^18.3.1 || ^19.0.0`） |
 | 3 | 组件库存在 | 搜索 `createLibrary` 调用 | 执行 /openui:component |
 | 4 | 所有属性都有 .describe() | AST 检查或文本搜索 | 为每个 Zod 字段添加 `.describe("...")` |
 | 5 | 系统提示词存在 | 查找 `**/system-prompt.txt` | 执行 /openui:prompt |
@@ -325,7 +325,7 @@ s1 = Series("Revenue", [10, 20, 30])  # 支持前向引用（自动提升）
 
 | 错误 | 原因 | 修复方法 |
 |------|------|----------|
-| React 19 peer dependency | OpenUI 要求 React >= 19 | `npm i react@latest react-dom@latest` |
+| React peer warning | OpenUI 要求 React >= 18.3.1 | `npm i react@latest react-dom@latest` |
 | Components not rendering | 缺少 CSS 导入 | 在根布局中添加 `@openuidev/react-ui/components.css` |
 | Stream hangs / no output | streamProtocol 与后端流格式不匹配 | SSE 后端用 `openAIAdapter()`，NDJSON 后端用 `openAIReadableStreamAdapter()` |
 | FullScreen 属性被静默忽略 | 使用了 `adapter=` 属性（不存在） | 改为 `streamProtocol=` 并将适配器作为函数调用 |

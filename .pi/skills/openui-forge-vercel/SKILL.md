@@ -17,7 +17,7 @@ Build generative UI apps with OpenUI + Vercel AI SDK. Native streaming with `str
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 19
+- Node.js >= 18, React >= 18.3.1 (19+ recommended)
 - `OPENAI_API_KEY` environment variable set
 - Next.js project (App Router)
 
@@ -25,7 +25,7 @@ Build generative UI apps with OpenUI + Vercel AI SDK. Native streaming with `str
 
 1. Install dependencies:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod ai @ai-sdk/openai
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod ai @ai-sdk/openai
 ```
 2. Add the CSS import to `app/layout.tsx`:
 ```tsx

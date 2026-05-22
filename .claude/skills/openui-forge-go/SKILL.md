@@ -16,7 +16,7 @@ Build generative UI apps with a React frontend + Go backend. Streams OpenAI API 
 
 ## Prerequisites
 
-- Node.js >= 18 + React >= 19 (frontend)
+- Node.js >= 18 + React >= 18.3.1 (19+ recommended) (frontend)
 - Go >= 1.23 (backend; older releases are out of security support)
 - `OPENAI_API_KEY` environment variable set
 
@@ -24,7 +24,7 @@ Build generative UI apps with a React frontend + Go backend. Streams OpenAI API 
 
 1. Create the React frontend and install OpenUI deps:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod
 ```
 2. Generate the system prompt:
 ```bash
