@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OpenUI Forge — OpenUI, anywhere your code already lives</title>
+<meta name="description" content="Cross-IDE, multi-stack agent skill for OpenUI. Drops the Open Standard for Generative UI into existing codebases across seven backends and eleven agent platforms.">
+<meta property="og:title" content="OpenUI Forge">
+<meta property="og:description" content="Cross-IDE, multi-stack agent skill for OpenUI. Any LLM provider, any backend language, eleven agent platforms.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://spruce-prism-8yya.here.now/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f8efe2'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-style='italic' font-size='24' text-anchor='middle' fill='%23b94a1f'%3Eo%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<nav class="nav" aria-label="Primary">
+  <div class="nav-inner">
+    <a class="nav-mark" href="#top">openui-forge</a>
+    <div class="nav-links">
+      <a href="#stacks">Stacks</a>
+      <a href="#why">Why</a>
+      <a href="#install">Install</a>
+      <a class="nav-cta" href="https://github.com/OthmanAdi/openui-forge">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<a id="top"></a>
+
+<main>
+
+  <!-- HERO · Marquee Hero -->
+  <section class="hero">
+    <div class="frame">
+      <p class="hero-eyebrow">An agent skill for the Open Standard for Generative UI</p>
+      <div class="hero-grid">
+        <h1 class="hero-h">
+          OpenUI, <em>anywhere</em><br>
+          your code <span class="amp">already</span> lives.
+        </h1>
+        <aside class="hero-side">
+          <p class="hero-sub">
+            Cross-IDE, multi-stack agent skill that drops <strong>OpenUI</strong> into the codebase
+            you already have. Any LLM provider, any backend language, eleven agent platforms.
+          </p>
+          <div class="hero-cmd" role="group" aria-label="Install command">
+            <code>npx skills add OthmanAdi/openui-forge --skill openui-forge -g</code>
+            <button class="copy" type="button" aria-label="Copy install command">copy</button>
+          </div>
+        </aside>
+      </div>
+      <p class="hero-floor">
+        Complement to the canonical <a href="https://github.com/thesysdev/openui/tree/main/skills/openui">thesysdev/openui</a>
+        skill — which targets a Next.js + OpenAI default scaffold. This one is built for everything else:
+        existing projects, non-JavaScript backends, alternate providers, and IDEs beyond Claude Code.
+      </p>
+    </div>
+  </section>
+
+  <!-- LEDE · Italic-serif essay paragraph -->
+  <section class="lede">
+    <div class="frame">
+      <p class="lede-inner">
+        OpenUI Forge handles the parts the official scaffolder does not:
+        <em>adding</em> OpenUI to existing projects, <em>non-JavaScript</em> backend templates,
+        and <em>any LLM provider</em> via the direct SDK or any OpenAI-compatible endpoint
+        (Gemini, OpenRouter, xAI, DeepSeek) through <code>OPENAI_BASE_URL</code>.
+        Skill content mirrors identically across eleven agent platforms.
+      </p>
+    </div>
+  </section>
+
+  <!-- LEDGER · Numbered real-stats -->
+  <section class="ledger">
+    <div class="frame">
+      <ol class="ledger-list">
+        <li>
+          <span class="ledger-n">07</span>
+          <span class="ledger-label">backend stacks</span>
+          <span class="ledger-note">OpenAI · Anthropic · LangChain · Vercel AI · Python (FastAPI) · Go (net/http) · Rust (Axum)</span>
+        </li>
+        <li>
+          <span class="ledger-n">11</span>
+          <span class="ledger-label">agent platforms</span>
+          <span class="ledger-note">Claude Code · Cursor · Codex CLI · Gemini CLI · Kiro · Continue · Factory · OpenCode · Pi · Mastra · CodeBuddy</span>
+        </li>
+        <li>
+          <span class="ledger-n">09</span>
+          <span class="ledger-label">installable skill variants</span>
+          <span class="ledger-note">Core skill plus seven stack-specific variants plus Chinese localisation</span>
+        </li>
+        <li>
+          <span class="ledger-n">01</span>
+          <span class="ledger-label">open standard</span>
+          <span class="ledger-note">OpenUI Lang, the line-oriented streaming DSL that LLMs emit instead of JSON or HTML</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- STACKS · Matrix table -->
+  <section id="stacks" class="stacks">
+    <div class="frame">
+      <header class="section-head">
+        <h2>The seven supported stacks.</h2>
+        <p>Each row is the verified, source-of-truth pattern for that stack's adapter pairing. Pick by the language your existing backend speaks.</p>
+      </header>
+      <div class="stack-table-wrap">
+        <table class="stack-table">
+          <thead>
+            <tr>
+              <th>Stack</th>
+              <th>Language</th>
+              <th>Backend stream</th>
+              <th>Frontend <code>streamProtocol</code></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="stack-name">OpenAI SDK</span></td>
+              <td><span class="stack-lang">TypeScript</span></td>
+              <td>NDJSON via <code>response.toReadableStream()</code></td>
+              <td><code>openAIReadableStreamAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Anthropic SDK</span></td>
+              <td><span class="stack-lang">TypeScript</span></td>
+              <td>SSE (events converted)</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">LangChain · LangGraph</span></td>
+              <td><span class="stack-lang">TypeScript</span></td>
+              <td>SSE (chunks converted)</td>
+              <td><code>openAIAdapter()</code> · <code>langGraphAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Vercel AI SDK</span></td>
+              <td><span class="stack-lang">TypeScript</span></td>
+              <td>Native UI message stream</td>
+              <td>native <code>processMessage</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Python · FastAPI</span></td>
+              <td><span class="stack-lang">Python</span></td>
+              <td>SSE</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Go · net/http</span></td>
+              <td><span class="stack-lang">Go</span></td>
+              <td>SSE passthrough</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Rust · Axum</span></td>
+              <td><span class="stack-lang">Rust</span></td>
+              <td>SSE via Axum <code>Sse&lt;…&gt;</code></td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="stack-rule">
+        One rule: match the adapter to the backend body. SSE pairs with
+        <code>openAIAdapter()</code>; NDJSON pairs with
+        <code>openAIReadableStreamAdapter()</code>. Mismatched pairs render nothing.
+      </p>
+    </div>
+  </section>
+
+  <!-- WHY -->
+  <section id="why" class="why">
+    <div class="frame">
+      <header class="section-head">
+        <h2>Why this exists.</h2>
+        <p>The official scaffold is excellent and singular. This is what fills the surrounding ground — the things the canonical CLI deliberately does not do.</p>
+      </header>
+      <div class="why-grid">
+        <article>
+          <h3><em>Existing</em> projects, not greenfield.</h3>
+          <p>
+            The canonical CLI is <code>npx @openuidev/cli create</code>: it scaffolds
+            a fresh Next.js + OpenAI app. <code>openui-forge</code> adds OpenUI to projects
+            that already exist, in any framework, with any backend already in place.
+          </p>
+        </article>
+        <article>
+          <h3><em>Non-JavaScript</em> backends.</h3>
+          <p>
+            Python FastAPI, Go net/http, Rust Axum. Each handler ships the
+            OpenAI-compatible SSE format the React renderer expects, with
+            adapter pairings verified against canonical source.
+          </p>
+        </article>
+        <article>
+          <h3>Any provider via <code>OPENAI_BASE_URL</code>.</h3>
+          <p>
+            The OpenAI stack code path also routes Gemini, OpenRouter, xAI,
+            DeepSeek, and any other OpenAI-compatible endpoint. One env var.
+            Models are env-overridable (<code>OPENAI_MODEL</code>, <code>ANTHROPIC_MODEL</code>).
+          </p>
+        </article>
+        <article>
+          <h3><em>Eleven</em> agent platforms.</h3>
+          <p>
+            Skill content mirrors to Claude Code, Cursor, Codex CLI, Gemini CLI,
+            Kiro, Continue, Factory, OpenCode, Pi, Mastra, and CodeBuddy via
+            the project's sync script. Install once on whichever IDE you live in.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMANDS -->
+  <section class="commands">
+    <div class="frame">
+      <header class="section-head">
+        <h2>Six slash commands.</h2>
+        <p>The skill installs each as a Claude Code (or equivalent) slash command. Each one is a focused, deterministic step in the OpenUI lifecycle.</p>
+      </header>
+      <dl class="cmd-list">
+        <dt>/openui</dt>
+        <dd><em>Smart detection.</em> Reads the project state, recommends the next move.</dd>
+        <dt>/openui:scaffold</dt>
+        <dd>Adds OpenUI to an existing project, or scaffolds a new one via the official CLI.</dd>
+        <dt>/openui:component</dt>
+        <dd>Creates a new component with a Zod schema and a React renderer.</dd>
+        <dt>/openui:integrate</dt>
+        <dd>Wires the LLM backend for the detected stack. Handles adapter, format, and headers.</dd>
+        <dt>/openui:prompt</dt>
+        <dd>Generates or regenerates the system prompt from the component library.</dd>
+        <dt>/openui:validate</dt>
+        <dd>Ten-check validation pipeline: deps, library, prompt, route, page, CSS, adapter, CORS, and more.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="install">
+    <div class="frame">
+      <header class="section-head">
+        <h2>Install.</h2>
+        <p>One command per stack. The full skill bundles everything; the variants are useful when you want only the surface you ship against.</p>
+      </header>
+      <div class="install-block">
+<pre><span class="c"># Full skill (all stacks)</span>
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge</span>             -g
+
+<span class="c"># Stack-specific variants</span>
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-openai</span>      -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-anthropic</span>   -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-langchain</span>   -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-vercel</span>      -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-python</span>      -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-go</span>          -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-rust</span>        -g
+
+<span class="c"># Chinese localisation</span>
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-zh</span>          -g</pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- FOOTER · Ft5 Statement -->
+<footer class="footer">
+  <div class="frame">
+    <p class="footer-statement">
+      Built <em>carefully</em>. Tested across stacks. Open <em>MIT</em>.
+    </p>
+    <div class="footer-meta">
+      <a href="https://github.com/OthmanAdi/openui-forge">Repository</a>
+      <a href="https://www.openui.com/docs">OpenUI docs</a>
+      <a href="https://github.com/thesysdev/openui">OpenUI on GitHub</a>
+      <a href="https://discord.com/invite/Pbv5PsqUSv">OpenUI Discord</a>
+      <a href="https://skills.sh/OthmanAdi/openui-forge">skills.sh listing</a>
+      <a href="https://othmanadi.com">othmanadi.com</a>
+    </div>
+    <p class="footer-coda">Made by OthmanAdi · MIT licensed · v1.1.0</p>
+  </div>
+</footer>
+
+<script>
+  // Copy install command on hero
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.previousElementSibling.textContent.trim();
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(code).then(function () {
+        var original = btn.textContent;
+        btn.textContent = 'copied';
+        btn.dataset.state = 'success';
+        setTimeout(function () {
+          btn.textContent = original;
+          delete btn.dataset.state;
+        }, 1500);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

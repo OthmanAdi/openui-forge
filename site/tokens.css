@@ -1,0 +1,69 @@
+/* Hallmark · tokens for openui-forge site
+ * theme: Atelier · genre: editorial · paper: light · display: italic-serif · accent: warm
+ */
+
+:root {
+  /* Atelier palette — warm cream paper, ink-warm body, rust accent */
+  --color-paper:        oklch(97% 0.012 80);
+  --color-paper-2:      oklch(94% 0.016 78);
+  --color-paper-3:      oklch(89% 0.020 70);
+  --color-ink:          oklch(20% 0.020 50);
+  --color-ink-2:        oklch(38% 0.020 50);
+  --color-ink-3:        oklch(55% 0.018 55);
+  --color-accent:       oklch(48% 0.140 32);
+  --color-accent-soft:  oklch(60% 0.120 32);
+  --color-accent-ink:   oklch(36% 0.150 32);
+  --color-focus:        oklch(50% 0.180 250);
+  --color-rule:         oklch(82% 0.014 70);
+  --color-rule-faint:   oklch(88% 0.010 70);
+
+  /* Typography — 2 + 1: italic-serif display · neo-grotesque body · mono utility */
+  --font-display:       "Cormorant Garamond", "EB Garamond", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body:          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:          "JetBrains Mono", "Berkeley Mono", "Fira Code", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Type scale */
+  --text-xs:            0.75rem;
+  --text-sm:            0.875rem;
+  --text-base:          1rem;
+  --text-md:            1.125rem;
+  --text-lg:            1.25rem;
+  --text-xl:            1.5rem;
+  --text-2xl:           2rem;
+  --text-3xl:           2.625rem;
+  --text-4xl:           3.5rem;
+  --text-display-s:     4.5rem;
+  --text-display:       6.5rem;
+
+  /* Spacing — 4pt scale */
+  --space-2xs:          0.25rem;
+  --space-xs:           0.5rem;
+  --space-sm:           0.75rem;
+  --space-md:           1rem;
+  --space-lg:           1.5rem;
+  --space-xl:           2rem;
+  --space-2xl:          3rem;
+  --space-3xl:          4.5rem;
+  --space-4xl:          7rem;
+  --space-5xl:          10rem;
+
+  /* Motion */
+  --ease-out:           cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:            cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out:        cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:           150ms;
+  --dur-base:           250ms;
+  --dur-slow:           400ms;
+
+  /* Rules + radii */
+  --rule-thin:          1px solid var(--color-rule);
+  --rule-faint:         1px solid var(--color-rule-faint);
+  --radius-sm:          4px;
+  --radius-md:          8px;
+  --radius-pill:        999px;
+
+  /* Layout */
+  --measure:            68ch;
+  --measure-wide:       82ch;
+  --container:          1180px;
+}

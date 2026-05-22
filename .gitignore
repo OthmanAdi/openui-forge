@@ -23,3 +23,6 @@ dist/
 .env
 .env.local
 .env.*.local
+
+# here.now local publish state (slug, claim token cache — never commit)
+.herenow/
