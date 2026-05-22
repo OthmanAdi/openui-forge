@@ -2,8 +2,9 @@
 // File: app/api/chat/route.ts
 //
 // Uses LangChain's ChatOpenAI (swap to ChatAnthropic if needed).
-// Converts LangChain's streaming chunks into OpenAI-compatible NDJSON
-// so the frontend openAIReadableStreamAdapter can parse them unchanged.
+// Converts LangChain's streaming chunks into OpenAI-compatible SSE
+// (`data: {json}\n\n` + `data: [DONE]`) so the frontend openAIAdapter
+// can parse them unchanged.
 
 import { NextRequest } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
@@ -65,7 +66,7 @@ function toLangChainMessages(messages: ChatMessage[]): BaseMessage[] {
 }
 
 // ---------------------------------------------------------------------------
-// OpenAI-compatible NDJSON chunk builder
+// OpenAI-compatible SSE chunk builder
 // ---------------------------------------------------------------------------
 
 function openAIChunk(
@@ -73,7 +74,7 @@ function openAIChunk(
   content: string,
   finishReason: string | null
 ): string {
-  return JSON.stringify({
+  const payload = JSON.stringify({
     id,
     object: "chat.completion.chunk",
     choices: [
@@ -83,7 +84,8 @@ function openAIChunk(
         finish_reason: finishReason,
       },
     ],
-  }) + "\n";
+  });
+  return `data: ${payload}\n\n`;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,10 +141,11 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Signal completion
+          // Signal completion, then the SSE [DONE] sentinel.
           controller.enqueue(
             encoder.encode(openAIChunk(completionId, "", "stop"))
           );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
           console.error("[chat] LangChain stream error:", err);
@@ -153,8 +156,8 @@ export async function POST(req: NextRequest) {
 
     return new Response(readableStream, {
       headers: {
-        "Content-Type": "application/x-ndjson",
-        "Cache-Control": "no-cache",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
       },
     });
