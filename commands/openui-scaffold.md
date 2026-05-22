@@ -18,13 +18,12 @@ Trigger the OpenUI scaffolding workflow. Follow the decision tree from SKILL.md 
 - Inform the user to run `/openui:integrate` next
 
 **Existing Next.js project:**
-1. Install dependencies: `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod`
-2. Add CSS imports to the root layout file (app/layout.tsx or similar):
+1. Install dependencies: `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod`
+2. Add the CSS import to the root layout file (app/layout.tsx or similar):
    ```tsx
    import "@openuidev/react-ui/components.css";
-   import "@openuidev/react-ui/styles/index.css";
    ```
-3. Create a component library file using `templates/library.ts.template` — or ask the user if they want to use the built-in `openuiLibrary` from `@openuidev/react-ui`
+3. Create a component library file using `templates/library.ts.template` — or ask the user if they want to use the built-in `openuiChatLibrary` from `@openuidev/react-ui/genui-lib` (chat-aware) or `openuiLibrary` (component-only)
 4. Recommend running `/openui:integrate` next
 
 **Existing Vite + React project:**

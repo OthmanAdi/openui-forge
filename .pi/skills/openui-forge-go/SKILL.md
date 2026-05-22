@@ -24,7 +24,7 @@ Build generative UI apps with a React frontend + Go backend. Streams OpenAI API 
 
 1. Create the React frontend and install OpenUI deps:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod
 ```
 2. Generate the system prompt:
 ```bash
@@ -152,23 +152,25 @@ func main() {
 ```tsx
 "use client";
 import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import {
-  openAIReadableStreamAdapter,
+  openAIAdapter,
   openAIMessageFormat,
 } from "@openuidev/react-headless";
 
 export default function ChatPage() {
   return (
     <FullScreen
-      componentLibrary={openuiLibrary}
-      adapter={openAIReadableStreamAdapter}
+      componentLibrary={openuiChatLibrary}
+      streamProtocol={openAIAdapter()}
       messageFormat={openAIMessageFormat}
       apiUrl="http://localhost:8080/api/chat"
     />
   );
 }
 ```
+
+> The Go backend forwards OpenAI's SSE stream verbatim (`io.Copy`). Pair it with `openAIAdapter()` on the frontend. `openAIReadableStreamAdapter()` is for NDJSON (no `data:` prefix) and will silently produce no output here.
 
 ## System Prompt Generation
 
@@ -183,8 +185,9 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 - [ ] CORS middleware allows the frontend origin
 - [ ] Response streams SSE directly from OpenAI API (passthrough)
 - [ ] Frontend `apiUrl` points to `http://localhost:8080/api/chat`
-- [ ] Frontend uses `openAIReadableStreamAdapter` and `openAIMessageFormat`
-- [ ] CSS imports in root layout
+- [ ] Frontend uses `streamProtocol={openAIAdapter()}` and `openAIMessageFormat`
+- [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
+- [ ] CSS import in root layout (`@openuidev/react-ui/components.css`)
 
 ## Error Patterns
 

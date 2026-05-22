@@ -25,12 +25,11 @@ Build generative UI apps with OpenUI + Vercel AI SDK. Native streaming with `str
 
 1. Install dependencies:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod ai @ai-sdk/openai
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod ai @ai-sdk/openai
 ```
-2. Add CSS imports to `app/layout.tsx`:
+2. Add the CSS import to `app/layout.tsx`:
 ```tsx
 import "@openuidev/react-ui/components.css";
-import "@openuidev/react-ui/styles/index.css";
 ```
 3. Create the API route and frontend page below
 4. Run `npm run dev` and test
@@ -40,14 +39,14 @@ import "@openuidev/react-ui/styles/index.css";
 ### Backend: `app/api/chat/route.ts`
 
 ```typescript
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const systemPrompt = openuiLibrary.prompt({
+  const systemPrompt = openuiChatLibrary.prompt({
     preamble: "You are a helpful assistant that generates interactive UIs.",
     additionalRules: ["Always use Stack as root when combining multiple components."],
   });
@@ -65,7 +64,7 @@ export async function POST(req: Request) {
 ### Backend with Tools: `app/api/chat/route.ts`
 
 ```typescript
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import { streamText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
@@ -73,7 +72,7 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const systemPrompt = openuiLibrary.prompt({
+  const systemPrompt = openuiChatLibrary.prompt({
     preamble: "You are a helpful assistant that generates interactive UIs. Use tools to fetch data before rendering.",
   });
 
@@ -104,7 +103,7 @@ export async function POST(req: Request) {
 ```tsx
 "use client";
 import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 
 async function processMessage(messages: { role: string; content: string }[]) {
   const res = await fetch("/api/chat", {
@@ -119,30 +118,8 @@ async function processMessage(messages: { role: string; content: string }[]) {
 export default function ChatPage() {
   return (
     <FullScreen
-      componentLibrary={openuiLibrary}
+      componentLibrary={openuiChatLibrary}
       processMessage={processMessage}
-    />
-  );
-}
-```
-
-### Frontend (with useChat): `app/chat/page.tsx`
-
-```tsx
-"use client";
-import { useChat } from "@ai-sdk/react";
-import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
-
-export default function ChatPage() {
-  const chat = useChat({ api: "/api/chat" });
-
-  return (
-    <FullScreen
-      componentLibrary={openuiLibrary}
-      messages={chat.messages}
-      onSend={(text) => chat.append({ role: "user", content: text })}
-      isLoading={chat.isLoading}
     />
   );
 }
@@ -178,16 +155,16 @@ export const WeatherCard = defineComponent({
 npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prompt.txt
 ```
 
-Or at runtime via `openuiLibrary.prompt()` as shown in the route.
+Or at runtime via `openuiChatLibrary.prompt()` as shown in the route.
 
 ## Validation Checklist
 
 - [ ] `OPENAI_API_KEY` is set in `.env.local`
 - [ ] `ai` and `@ai-sdk/openai` packages installed
 - [ ] Route uses `streamText` and returns `result.toUIMessageStreamResponse()`
-- [ ] Frontend uses `processMessage` or `useChat` (not `openAIReadableStreamAdapter`)
-- [ ] `componentLibrary` prop passed to `FullScreen`
-- [ ] CSS imports in root layout
+- [ ] Frontend uses `processMessage` returning `response.body` (the Vercel AI SDK stream is consumed natively, no `streamProtocol` needed)
+- [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
+- [ ] CSS import in root layout
 - [ ] If using tools: `maxSteps` is set, tool results feed back to model
 
 ## Error Patterns
@@ -195,7 +172,7 @@ Or at runtime via `openuiLibrary.prompt()` as shown in the route.
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `ai` module not found | Missing Vercel AI SDK | `npm install ai @ai-sdk/openai` |
-| Stream format mismatch | Using `openAIReadableStreamAdapter` with Vercel AI | Use `processMessage` or `useChat` instead |
+| Stream format mismatch | Trying to use `openAIReadableStreamAdapter` with Vercel AI's UI message stream | Drop `streamProtocol`. Use `processMessage` returning `response.body` — the AI SDK stream is consumed natively |
 | Tools not executing | Missing `maxSteps` | Add `maxSteps: 3` (or higher) to `streamText` options |
 | Blank response | Wrong export from `@ai-sdk/openai` | Use `openai("gpt-4o")` not `new OpenAI()` |
-| Type errors on messages | Vercel AI message format differs | Let `useChat` manage messages, or map to `CoreMessage[]` |
+| Props silently ignored | Passing `messages`/`onSend`/`isLoading` props to `FullScreen` | `FullScreen` does not accept these — use `processMessage` instead |

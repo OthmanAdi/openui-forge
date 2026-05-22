@@ -61,7 +61,7 @@ data: [DONE]
 import { openAIAdapter } from "@openuidev/react-headless";
 
 <ChatProvider
-  adapter={openAIAdapter()}
+  streamProtocol={openAIAdapter()}
   // ...
 />
 ```
@@ -101,7 +101,7 @@ data: {"id":"resp_abc","status":"completed"}
 import { openAIResponsesAdapter } from "@openuidev/react-headless";
 
 <ChatProvider
-  adapter={openAIResponsesAdapter()}
+  streamProtocol={openAIResponsesAdapter()}
   // ...
 />
 ```
@@ -135,7 +135,7 @@ This is the universal adapter for non-JavaScript backends. Every backend templat
 import { openAIReadableStreamAdapter } from "@openuidev/react-headless";
 
 <ChatProvider
-  adapter={openAIReadableStreamAdapter()}
+  streamProtocol={openAIReadableStreamAdapter()}
   // ...
 />
 ```
@@ -341,15 +341,19 @@ Use this table to select the correct adapter and message format for your backend
 | **OpenAI SDK (Node.js)** — `response.toReadableStream()` | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Most common JS integration. Stream is NDJSON from `.toReadableStream()`. |
 | **OpenAI SDK (Node.js)** — raw SSE passthrough | `openAIAdapter()` | `openAIMessageFormat` | When piping the raw SSE response body directly. |
 | **OpenAI Responses API** | `openAIResponsesAdapter()` | `openAIConversationMessageFormat` | Newer Responses API with named SSE events. |
-| **Anthropic SDK (Node.js)** | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Backend converts Anthropic events to OpenAI NDJSON format. |
-| **Vercel AI SDK** | Native (uses `useChat` or `processMessage`) | Native | Vercel AI SDK has built-in OpenUI support via `toUIMessageStreamResponse()`. |
-| **LangChain / LangGraph (Node.js)** | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Backend converts LangChain stream chunks to OpenAI NDJSON. |
-| **Python (FastAPI / Flask)** | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Backend streams NDJSON via StreamingResponse. See `backend-patterns.md`. |
-| **Go (net/http)** | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Backend writes NDJSON lines to ResponseWriter. See `backend-patterns.md`. |
-| **Rust (Axum)** | `openAIReadableStreamAdapter()` | `openAIMessageFormat` | Backend streams NDJSON via SSE/Body. See `backend-patterns.md`. |
-| **Custom / AG-UI native** | `agUIAdapter()` | `identityMessageFormat` | When using the AG-UI server SDK or custom AG-UI backend. |
+| **Anthropic SDK (Node.js)** | `openAIAdapter()` | `openAIMessageFormat` | Backend converts Anthropic events to OpenAI-compatible SSE (`data: {json}\n\n` + `data: [DONE]`). |
+| **Vercel AI SDK** | Native (uses `processMessage` returning `response.body`) | Native | Vercel AI SDK has built-in OpenUI support via `toUIMessageStreamResponse()`. |
+| **LangChain / LangGraph (Node.js)** | `openAIAdapter()` (or `langGraphAdapter()` for native LangGraph events) | `openAIMessageFormat` (or `langGraphMessageFormat`) | Backend converts LangChain stream chunks to OpenAI-compatible SSE. |
+| **Python (FastAPI / Flask)** | `openAIAdapter()` | `openAIMessageFormat` | Backend streams SSE via `StreamingResponse` with `media_type="text/event-stream"`. See `backend-patterns.md`. |
+| **Go (net/http)** | `openAIAdapter()` | `openAIMessageFormat` | Backend forwards OpenAI SSE (`Content-Type: text/event-stream`). See `backend-patterns.md`. |
+| **Rust (Axum)** | `openAIAdapter()` | `openAIMessageFormat` | Backend streams via Axum's `Sse<...>` response. See `backend-patterns.md`. |
+| **AG-UI native server** | `agUIAdapter()` | `identityMessageFormat` | When using the AG-UI server SDK or any AG-UI-emitting backend. |
+| **LangGraph native** | `langGraphAdapter()` | `langGraphMessageFormat` | When streaming directly from a LangGraph runtime (no SSE conversion). |
 
-**Rule of thumb:** If you are not sure which adapter to use, use `openAIReadableStreamAdapter()` with `openAIMessageFormat`. This combination works with any backend that can emit OpenAI-compatible NDJSON, which covers the majority of real-world integrations.
+**Rule of thumb:** Match the adapter to the response format:
+- Response body is SSE (`data: {json}\n\n` lines, optional `data: [DONE]`)? Use `openAIAdapter()`.
+- Response body is raw NDJSON (one JSON object per line, no `data:` prefix)? Use `openAIReadableStreamAdapter()`.
+- Using the OpenAI Node.js SDK's `response.toReadableStream()`? That produces NDJSON, so use `openAIReadableStreamAdapter()`.
 
 ---
 
@@ -368,7 +372,7 @@ export default function ChatPage() {
   return (
     <ChatProvider
       apiUrl="http://localhost:8000/api/chat"
-      adapter={openAIReadableStreamAdapter()}
+      streamProtocol={openAIReadableStreamAdapter()}
       messageFormat={openAIMessageFormat}
       componentLibrary={myLibrary}
     >
@@ -382,9 +386,10 @@ Key properties on `ChatProvider`:
 
 | Prop | Required | Description |
 |------|----------|-------------|
-| `apiUrl` | Yes | URL of the backend chat endpoint |
-| `adapter` | Yes | Streaming protocol adapter to parse the response |
-| `messageFormat` | Yes | Message format converter for conversation history |
-| `componentLibrary` | Yes | The library created with `createLibrary` |
-| `headers` | No | Additional HTTP headers (e.g., auth tokens) |
-| `onError` | No | Error callback for stream failures |
+| `apiUrl` | One of `apiUrl` / `processMessage` | URL of the backend chat endpoint |
+| `processMessage` | One of `apiUrl` / `processMessage` | Async function that returns a `Response` (gives full control over fetch) |
+| `streamProtocol` | No (but practically required) | Streaming protocol adapter, **called as a function** (e.g. `openAIAdapter()`) |
+| `messageFormat` | No (defaults to identity) | Message format converter for conversation history |
+| `componentLibrary` | No | The library created with `createLibrary`; required for GenUI rendering |
+
+> Common pitfall: the prop is `streamProtocol`, **not** `adapter`. An `adapter` prop is silently ignored. Adapters are factory functions and must be called: `streamProtocol={openAIAdapter()}` not `streamProtocol={openAIAdapter}`.

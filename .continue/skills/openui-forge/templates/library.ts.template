@@ -1,5 +1,10 @@
 import { createLibrary } from "@openuidev/react-lang";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiLibrary, openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
+
+// openuiLibrary       — base component-only standard library
+// openuiChatLibrary   — chat-aware library (includes additional rules for
+//                       chat surfaces like FullScreen / Copilot / BottomTray)
+// Use openuiChatLibrary when extending for a chat UI; otherwise openuiLibrary.
 
 // Import your custom components
 ${COMPONENT_IMPORTS}

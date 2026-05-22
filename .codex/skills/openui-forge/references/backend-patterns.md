@@ -693,7 +693,7 @@ The system prompt contains:
 
 ## React Frontend Page
 
-This frontend page works with ALL of the backends above. It uses `openAIReadableStreamAdapter()` and `openAIMessageFormat`, which is the universal combination for custom backends.
+This frontend page works with the backends above. Pick the adapter to match the backend's response format: backends emitting SSE (`data: {json}\n\n`) use `openAIAdapter()`; backends emitting raw NDJSON (one JSON per line, no `data:` prefix) use `openAIReadableStreamAdapter()`. All examples below default to `openAIReadableStreamAdapter()` for parity with the OpenAI Node SDK's `response.toReadableStream()` flow — swap as needed.
 
 ```tsx
 "use client";
@@ -706,15 +706,14 @@ import {
 import { FullScreen } from "@openuidev/react-ui";
 import { myLibrary } from "@/lib/library";
 
-// Required CSS imports — add these to your root layout.tsx if not already present:
+// Required CSS import — add to your root layout.tsx if not already present:
 // import "@openuidev/react-ui/components.css";
-// import "@openuidev/react-ui/styles/index.css";
 
 export default function ChatPage() {
   return (
     <ChatProvider
       apiUrl={process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}
-      adapter={openAIReadableStreamAdapter()}
+      streamProtocol={openAIReadableStreamAdapter()}
       messageFormat={openAIMessageFormat}
       componentLibrary={myLibrary}
     >
@@ -730,7 +729,6 @@ The root `layout.tsx` must include the OpenUI CSS:
 
 ```tsx
 import "@openuidev/react-ui/components.css";
-import "@openuidev/react-ui/styles/index.css";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -760,7 +758,7 @@ export default function AppPage() {
   return (
     <ChatProvider
       apiUrl={process.env.NEXT_PUBLIC_CHAT_API_URL || "http://localhost:8000/api/chat"}
-      adapter={openAIReadableStreamAdapter()}
+      streamProtocol={openAIReadableStreamAdapter()}
       messageFormat={openAIMessageFormat}
       componentLibrary={myLibrary}
     >

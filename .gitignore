@@ -1,0 +1,25 @@
+# Agent working notes (audit plans, findings, mission) — kept locally, not part of the skill
+.agents/AUDIT_PLAN.md
+.agents/FINDINGS.md
+.agents/MISSION.md
+
+# Windows / shell debris
+*.stackdump
+Thumbs.db
+desktop.ini
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Node / build output (in case downstream demo apps land here)
+node_modules/
+dist/
+.next/
+.turbo/
+
+# Secrets
+.env
+.env.local
+.env.*.local

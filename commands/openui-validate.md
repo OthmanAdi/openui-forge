@@ -45,18 +45,19 @@ Run each check in order. For each one, output PASS or FAIL with details.
 **Pass:** At least one page or component uses an OpenUI layout component
 **Fix if FAIL:** Create a page using `templates/page-fullscreen.tsx.template`
 
-### Check 8 — CSS imports present
+### Check 8 — CSS import present
 **How:** Search for `@openuidev/react-ui/components.css` in layout or entry files
-**Pass:** Both CSS imports are present:
-  - `@openuidev/react-ui/components.css`
-  - `@openuidev/react-ui/styles/index.css`
-**Fix if FAIL:** Add both imports to the root layout (Next.js: app/layout.tsx, Vite: main.tsx or App.tsx)
+**Pass:** The CSS import is present: `@openuidev/react-ui/components.css`
+**Fix if FAIL:** Add the import to the root layout (Next.js: app/layout.tsx, Vite: main.tsx or App.tsx)
 
-### Check 9 — Adapter matches backend
-**How:** Identify which adapter the frontend uses (openAIReadableStreamAdapter, vercelAIAdapter, etc.) and verify it matches the backend's response format.
+### Check 9 — streamProtocol matches backend
+**How:** Identify which adapter the frontend uses on the `streamProtocol` prop and verify it matches the backend's response format.
+- Backend emits SSE (`data: {json}\n\n` lines)? Frontend must use `streamProtocol={openAIAdapter()}`.
+- Backend emits NDJSON (one JSON per line, no `data:` prefix)? Frontend must use `streamProtocol={openAIReadableStreamAdapter()}`.
+- If the frontend uses `adapter={...}` (no such prop) the value is silently ignored — nothing will render.
 Read `references/adapter-matrix.md` for the full compatibility matrix.
-**Pass:** The adapter type matches the backend's streaming format
-**Fix if FAIL:** Change the frontend adapter to match the backend. See the integration matrix in SKILL.md.
+**Pass:** The `streamProtocol` is set and matches the backend's streaming format
+**Fix if FAIL:** Rename `adapter=` to `streamProtocol=` if needed, call the adapter as a function (e.g. `openAIAdapter()`), and pick the adapter that matches the backend output.
 
 ### Check 10 — CORS headers (if cross-origin)
 **How:** Check if the frontend and backend are on different origins (different ports count). If so, verify the backend sets Access-Control-Allow-Origin headers.
@@ -79,8 +80,8 @@ OpenUI Validation Report
 [PASS] 5. System prompt exists — src/generated/system-prompt.txt
 [PASS] 6. Backend route exists — app/api/chat/route.ts
 [PASS] 7. Frontend page exists — app/chat/page.tsx
-[FAIL] 8. CSS imports present — missing styles/index.css import
-[PASS] 9. Adapter matches backend
+[FAIL] 8. CSS import present — missing components.css import
+[PASS] 9. streamProtocol matches backend
 [PASS] 10. CORS headers (same-origin)
 
 Result: 8/10 passed
@@ -91,7 +92,7 @@ Fixes needed:
     - condition (z.string)
     - humidity (z.number)
 - Check 8: Add this import to app/layout.tsx:
-    import "@openuidev/react-ui/styles/index.css";
+    import "@openuidev/react-ui/components.css";
 ```
 
 If all 10 checks pass, confirm the integration is complete and ready for testing.

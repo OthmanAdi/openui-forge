@@ -24,7 +24,7 @@ Build generative UI apps with a React frontend + Python FastAPI backend. Streams
 
 1. Create the React frontend and install OpenUI deps:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod
 ```
 2. Generate the system prompt from your component library:
 ```bash
@@ -138,23 +138,25 @@ async def chat(request: Request):
 ```tsx
 "use client";
 import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import {
-  openAIReadableStreamAdapter,
+  openAIAdapter,
   openAIMessageFormat,
 } from "@openuidev/react-headless";
 
 export default function ChatPage() {
   return (
     <FullScreen
-      componentLibrary={openuiLibrary}
-      adapter={openAIReadableStreamAdapter}
+      componentLibrary={openuiChatLibrary}
+      streamProtocol={openAIAdapter()}
       messageFormat={openAIMessageFormat}
       apiUrl="http://localhost:8000/api/chat"
     />
   );
 }
 ```
+
+> The Python backend emits SSE (`data: {json}\n\n`). Pair it with `openAIAdapter()` on the frontend. `openAIReadableStreamAdapter()` is for NDJSON (no `data:` prefix) and will silently produce no output here.
 
 ## System Prompt Generation
 
@@ -173,8 +175,9 @@ Regenerate after every component change.
 - [ ] Backend streams `data: {json}\n\n` lines with OpenAI chunk format
 - [ ] Final chunk has `finish_reason: "stop"` followed by `data: [DONE]`
 - [ ] Frontend `apiUrl` points to the correct backend URL
-- [ ] Frontend uses `openAIReadableStreamAdapter` and `openAIMessageFormat`
-- [ ] CSS imports in root layout
+- [ ] Frontend uses `streamProtocol={openAIAdapter()}` and `openAIMessageFormat`
+- [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
+- [ ] CSS import in root layout (`@openuidev/react-ui/components.css`)
 - [ ] Run backend: `uvicorn main:app --reload --port 8000`
 
 ## Error Patterns

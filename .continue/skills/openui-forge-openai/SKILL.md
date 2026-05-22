@@ -24,12 +24,11 @@ Build generative UI apps with OpenUI + OpenAI SDK. One backend, one adapter, str
 
 1. Install dependencies:
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod openai
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod openai
 ```
-2. Add CSS imports to `app/layout.tsx`:
+2. Add the CSS import to `app/layout.tsx`:
 ```tsx
 import "@openuidev/react-ui/components.css";
-import "@openuidev/react-ui/styles/index.css";
 ```
 3. Create the API route (Step 4 below)
 4. Create the frontend page (Step 5 below)
@@ -40,7 +39,7 @@ import "@openuidev/react-ui/styles/index.css";
 ### Backend: `app/api/chat/route.ts`
 
 ```typescript
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import OpenAI from "openai";
 
 const client = new OpenAI();
@@ -48,7 +47,7 @@ const client = new OpenAI();
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const systemPrompt = openuiLibrary.prompt({
+  const systemPrompt = openuiChatLibrary.prompt({
     preamble: "You are a helpful assistant that generates interactive UIs.",
     additionalRules: ["Always use Stack as root when combining multiple components."],
   });
@@ -59,8 +58,10 @@ export async function POST(req: Request) {
     messages: [{ role: "system", content: systemPrompt }, ...messages],
   });
 
+  // response.toReadableStream() produces NDJSON (one JSON object per line, no SSE `data:` prefix).
+  // Pair with openAIReadableStreamAdapter() on the frontend.
   return new Response(response.toReadableStream(), {
-    headers: { "Content-Type": "text/event-stream" },
+    headers: { "Content-Type": "application/x-ndjson" },
   });
 }
 ```
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
 ```tsx
 "use client";
 import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import {
   openAIReadableStreamAdapter,
   openAIMessageFormat,
@@ -79,8 +80,8 @@ import {
 export default function ChatPage() {
   return (
     <FullScreen
-      componentLibrary={openuiLibrary}
-      adapter={openAIReadableStreamAdapter}
+      componentLibrary={openuiChatLibrary}
+      streamProtocol={openAIReadableStreamAdapter()}
       messageFormat={openAIMessageFormat}
       apiUrl="/api/chat"
     />
@@ -123,10 +124,10 @@ npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prom
 ## Validation Checklist
 
 - [ ] `OPENAI_API_KEY` is set in `.env.local`
-- [ ] CSS imports present in root layout
-- [ ] API route returns `response.toReadableStream()` with `text/event-stream` content type
-- [ ] Frontend uses `openAIReadableStreamAdapter` and `openAIMessageFormat`
-- [ ] `componentLibrary` prop passed to `FullScreen`
+- [ ] CSS import present in root layout
+- [ ] API route returns `response.toReadableStream()` with `application/x-ndjson` content type
+- [ ] Frontend uses `streamProtocol={openAIReadableStreamAdapter()}` and `openAIMessageFormat`
+- [ ] `componentLibrary={openuiChatLibrary}` prop passed to `FullScreen`
 - [ ] React >= 19 installed
 
 ## Error Patterns
@@ -135,6 +136,7 @@ npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prom
 |-------|-------|-----|
 | 401 from OpenAI | Missing or invalid API key | Set `OPENAI_API_KEY` in `.env.local` |
 | Stream hangs | Missing `toReadableStream()` call | Ensure `stream: true` and return `response.toReadableStream()` |
-| Components render as text | Library not passed to FullScreen | Add `componentLibrary={openuiLibrary}` prop |
-| Blank screen | CSS not imported | Add both CSS imports to root layout |
+| Components render as text | Library not passed to FullScreen | Add `componentLibrary={openuiChatLibrary}` prop |
+| Blank screen | CSS not imported | Add `@openuidev/react-ui/components.css` to root layout |
+| Nothing renders, no error | Wrong prop name (`adapter` is silently ignored) | Rename to `streamProtocol` and call the adapter as a function: `streamProtocol={openAIReadableStreamAdapter()}` |
 | Partial render then stop | Model finished mid-output | Check token limits, increase `max_tokens` if needed |

@@ -24,13 +24,12 @@ Build generative UI apps with OpenUI + LangChain. Stream from ChatOpenAI or Chat
 
 1. Install dependencies (pick one or both LLM providers):
 ```bash
-npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang lucide-react zod @langchain/openai @langchain/core
+npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang @modelcontextprotocol/sdk lucide-react zod @langchain/openai @langchain/core
 # For Anthropic: npm install @langchain/anthropic
 ```
-2. Add CSS imports to `app/layout.tsx`:
+2. Add the CSS import to `app/layout.tsx`:
 ```tsx
 import "@openuidev/react-ui/components.css";
-import "@openuidev/react-ui/styles/index.css";
 ```
 3. Create the API route and frontend page below
 4. Run `npm run dev` and test
@@ -40,7 +39,7 @@ import "@openuidev/react-ui/styles/index.css";
 ### Backend (OpenAI): `app/api/chat/route.ts`
 
 ```typescript
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
@@ -49,7 +48,7 @@ const model = new ChatOpenAI({ modelName: "gpt-4o", streaming: true });
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const systemPrompt = openuiLibrary.prompt({
+  const systemPrompt = openuiChatLibrary.prompt({
     preamble: "You are a helpful assistant that generates interactive UIs.",
   });
 
@@ -114,23 +113,25 @@ Everything else (message mapping, stream conversion, response) stays identical.
 ```tsx
 "use client";
 import { FullScreen } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import {
-  openAIReadableStreamAdapter,
+  openAIAdapter,
   openAIMessageFormat,
 } from "@openuidev/react-headless";
 
 export default function ChatPage() {
   return (
     <FullScreen
-      componentLibrary={openuiLibrary}
-      adapter={openAIReadableStreamAdapter}
+      componentLibrary={openuiChatLibrary}
+      streamProtocol={openAIAdapter()}
       messageFormat={openAIMessageFormat}
       apiUrl="/api/chat"
     />
   );
 }
 ```
+
+> The backend emits SSE (`data: {json}\n\n`). Pair it with `openAIAdapter()` on the frontend. (`langGraphAdapter` is also exported from `@openuidev/react-headless` if you stream LangGraph events natively rather than converting to OpenAI shape.)
 
 ## Component Creation
 
@@ -167,10 +168,10 @@ npx @openuidev/cli generate ./src/lib/library.ts --out src/generated/system-prom
 - [ ] LLM provider API key is set
 - [ ] `@langchain/openai` or `@langchain/anthropic` installed
 - [ ] Messages correctly mapped to LangChain message types
-- [ ] Stream chunks converted to OpenAI NDJSON with `data:` prefix
+- [ ] Stream chunks converted to OpenAI-compatible SSE with `data:` prefix
 - [ ] Final chunk has `finish_reason: "stop"` and ends with `data: [DONE]`
-- [ ] Frontend uses `openAIReadableStreamAdapter` and `openAIMessageFormat`
-- [ ] CSS imports in root layout
+- [ ] Frontend uses `streamProtocol={openAIAdapter()}` and `openAIMessageFormat`
+- [ ] CSS import in root layout
 
 ## Error Patterns
 
