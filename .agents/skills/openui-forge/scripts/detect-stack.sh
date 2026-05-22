@@ -62,7 +62,7 @@ library_path="null"
 lib_hit=$(sgrep -l "createLibrary" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . | head -n1)
 if [[ -n "$lib_hit" ]]; then
     has_component_library=true
-    library_path="\"$lib_hit\""
+    library_path=$(json_str "$lib_hit")
 fi
 
 # ── 7 & 8. System prompt ────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ prompt_path="null"
 prompt_hit=$(find . -name "system-prompt.txt" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -n1)
 if [[ -n "$prompt_hit" && -s "$prompt_hit" ]]; then
     has_system_prompt=true
-    prompt_path="\"$prompt_hit\""
+    prompt_path=$(json_str "$prompt_hit")
 fi
 
 # ── 9 & 10. Backend route ───────────────────────────────────────────────────
@@ -82,7 +82,7 @@ backend_path="null"
 route_hit=$(find . -path "*/api/chat/route.*" -not -path "*/node_modules/*" 2>/dev/null | head -n1)
 if [[ -n "$route_hit" ]]; then
     has_backend_route=true
-    backend_path="\"$route_hit\""
+    backend_path=$(json_str "$route_hit")
 fi
 
 # ── 11. Frontend page with FullScreen / Copilot / ChatProvider ──────────────

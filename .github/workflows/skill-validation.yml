@@ -198,6 +198,10 @@ jobs:
         # the repo on skills.sh. skills.sh is a telemetry index: a per-skill page
         # only appears after the first `npx skills add <url> --skill <name>` runs.
         # Iterating every variant here makes the published-variants set self-healing.
+        # The `skills` CLI is pinned and runs with --ignore-scripts so a hijacked
+        # release cannot execute arbitrary postinstall code under GITHUB_TOKEN.
+        env:
+          NPM_CONFIG_IGNORE_SCRIPTS: "true"
         run: |
           SKILLS=(
             "openui-forge"
@@ -212,5 +216,5 @@ jobs:
           )
           for skill in "${SKILLS[@]}"; do
             echo "--- Installing $skill ---"
-            npx -y skills add https://github.com/OthmanAdi/openui-forge --skill "$skill" -g -y
+            npx --yes skills@^1.5 add https://github.com/OthmanAdi/openui-forge --skill "$skill" -g -y
           done

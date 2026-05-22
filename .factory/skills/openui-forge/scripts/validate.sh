@@ -158,11 +158,6 @@ fi
 
 # ── Check 9: Adapter consistency ────────────────────────────────────────────
 
-adapters_found=()
-if sgrep -q "openai" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null | grep -v node_modules; then
-    true  # openai found via grep
-fi
-
 # Detect which adapters are referenced
 openai_refs=$(sgrep -c "from ['\"]openai['\"]" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
 anthropic_refs=$(sgrep -c "@anthropic-ai/sdk" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
