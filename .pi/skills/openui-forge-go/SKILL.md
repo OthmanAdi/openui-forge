@@ -17,7 +17,7 @@ Build generative UI apps with a React frontend + Go backend. Streams OpenAI API 
 ## Prerequisites
 
 - Node.js >= 18 + React >= 19 (frontend)
-- Go >= 1.21 (backend)
+- Go >= 1.23 (backend; older releases are out of security support)
 - `OPENAI_API_KEY` environment variable set
 
 ## Quick Start
@@ -40,7 +40,7 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 ```
 module openui-backend
 
-go 1.21
+go 1.23
 
 require (
     github.com/joho/godotenv v1.5.1
@@ -53,10 +53,10 @@ require (
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -77,8 +77,9 @@ func init() {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(204)
 			return
@@ -138,8 +139,20 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.Copy(w, resp.Body)
-	flusher.Flush()
+	// Forward upstream SSE line-by-line so the client sees tokens as they
+	// arrive instead of waiting for the whole stream to complete.
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if _, err := w.Write(line); err != nil {
+			return
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
+			return
+		}
+		flusher.Flush()
+	}
 }
 
 func main() {

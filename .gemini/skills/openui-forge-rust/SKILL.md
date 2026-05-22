@@ -44,25 +44,32 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
+axum = "0.8"
+http = "1"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["stream"] }
+reqwest = { version = "0.13", features = ["stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-stream = "0.3"
 futures = "0.3"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors"] }
 dotenvy = "0.15"
 ```
 
 ### Backend: `backend/src/main.rs`
 
 ```rust
-use axum::{extract::Json, response::sse::{Event, Sse}, routing::post, Router};
+use axum::{
+    extract::{Json, State},
+    response::sse::{Event, Sse},
+    routing::post,
+    Router,
+};
 use futures::stream::Stream;
+use http::HeaderValue;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{convert::Infallible, fs, net::SocketAddr};
+use std::{convert::Infallible, fs, net::SocketAddr, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Deserialize)]
@@ -76,23 +83,27 @@ struct Message {
     content: String,
 }
 
-static mut SYSTEM_PROMPT: String = String::new();
+#[derive(Clone)]
+struct AppState {
+    system_prompt: String,
+}
 
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let prompt = fs::read_to_string("system-prompt.txt")
+    let system_prompt = fs::read_to_string("system-prompt.txt")
         .expect("system-prompt.txt not found");
-    unsafe { SYSTEM_PROMPT = prompt; }
+    let state = Arc::new(AppState { system_prompt });
 
     let cors = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<http::HeaderValue>().unwrap())
+        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
         .allow_methods([http::Method::POST])
         .allow_headers(Any);
 
     let app = Router::new()
         .route("/api/chat", post(chat_handler))
-        .layer(cors);
+        .layer(cors)
+        .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
     println!("Rust backend listening on {addr}");
@@ -101,10 +112,10 @@ async fn main() {
 }
 
 async fn chat_handler(
+    State(state): State<Arc<AppState>>,
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let system_prompt = unsafe { SYSTEM_PROMPT.clone() };
-    let mut messages = vec![Message { role: "system".into(), content: system_prompt }];
+    let mut messages = vec![Message { role: "system".into(), content: state.system_prompt.clone() }];
     messages.extend(req.messages);
 
     let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
@@ -193,5 +204,6 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 | `system-prompt.txt not found` | File missing | Run CLI generate command |
 | CORS blocked | Origin not in CorsLayer | Update `.allow_origin()` |
 | Partial SSE events | Chunk boundary splitting | Buffer and split on `\n\n` boundaries (handled in code) |
-| Compile error on `http::HeaderValue` | Missing `http` crate | `tower-http` re-exports it, or add `http = "1"` to deps |
+| Compile error on `http::HeaderValue` | Missing `http` crate | Add `http = "1"` to `Cargo.toml` (already in the example) or import from `axum::http` |
+| `static_mut_refs` warning on `static mut` | Rust 2024 deprecates raw `static mut` access | Use `OnceLock<String>` or carry state in `State<Arc<AppState>>` (this example uses the latter) |
 | Connection reset | Tokio runtime panic | Check `.await` on all async calls, verify `features = ["full"]` |

@@ -54,7 +54,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 load_dotenv()
 app = FastAPI()
@@ -65,7 +65,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI()
+# AsyncOpenAI keeps the request from blocking the event loop during streaming.
+client = AsyncOpenAI()
 SYSTEM_PROMPT = Path("system-prompt.txt").read_text()
 
 @app.post("/api/chat")
@@ -73,12 +74,13 @@ async def chat(request: Request):
     body = await request.json()
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + body["messages"]
 
-    response = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-5.5"), stream=True, messages=messages
-    )
-
-    def generate():
-        for chunk in response:
+    async def generate():
+        response = await client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+            stream=True,
+            messages=messages,
+        )
+        async for chunk in response:
             data = chunk.model_dump_json()
             yield f"data: {data}\n\n"
         yield "data: [DONE]\n\n"
@@ -95,7 +97,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 load_dotenv()
 app = FastAPI()
@@ -106,7 +108,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = Anthropic()
+# AsyncAnthropic mirrors AsyncOpenAI so the stream does not block the loop.
+client = AsyncAnthropic()
 SYSTEM_PROMPT = Path("system-prompt.txt").read_text()
 
 @app.post("/api/chat")
@@ -114,14 +117,14 @@ async def chat(request: Request):
     body = await request.json()
     stream_id = f"chatcmpl-{int(time.time())}"
 
-    def generate():
-        with client.messages.stream(
+    async def generate():
+        async with client.messages.stream(
             model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             max_tokens=4096,
             system=SYSTEM_PROMPT,
             messages=body["messages"],
         ) as stream:
-            for text in stream.text_stream:
+            async for text in stream.text_stream:
                 chunk = {"id": stream_id, "object": "chat.completion.chunk",
                          "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}]}
                 yield f"data: {json.dumps(chunk)}\n\n"
