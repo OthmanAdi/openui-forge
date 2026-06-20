@@ -6,215 +6,84 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Verify all SKILL.md files exist
+      # Skill list is discovered from skills/*/ so adding a variant needs no CI edit.
+      - name: Validate every SKILL.md (exists, non-empty, frontmatter)
         run: |
-          SKILLS=(
-            "openui-forge"
-            "openui-forge-openai"
-            "openui-forge-anthropic"
-            "openui-forge-langchain"
-            "openui-forge-python"
-            "openui-forge-go"
-            "openui-forge-rust"
-            "openui-forge-vercel"
-            "openui-forge-zh"
-          )
-          MISSING=0
-          for skill in "${SKILLS[@]}"; do
-            if [ ! -f "skills/$skill/SKILL.md" ]; then
-              echo "FAIL: skills/$skill/SKILL.md not found"
-              MISSING=1
-            else
-              echo "PASS: skills/$skill/SKILL.md exists"
-            fi
-          done
-          if [ "$MISSING" -eq 1 ]; then
-            exit 1
-          fi
-
-      - name: Validate SKILL.md frontmatter
-        run: |
-          SKILLS=(
-            "openui-forge"
-            "openui-forge-openai"
-            "openui-forge-anthropic"
-            "openui-forge-langchain"
-            "openui-forge-python"
-            "openui-forge-go"
-            "openui-forge-rust"
-            "openui-forge-vercel"
-            "openui-forge-zh"
-          )
-          FAILED=0
-          for skill in "${SKILLS[@]}"; do
-            FILE="skills/$skill/SKILL.md"
+          fail=0
+          shopt -s nullglob
+          dirs=(skills/*/)
+          if [ ${#dirs[@]} -eq 0 ]; then echo "FAIL: no skills found under skills/"; exit 1; fi
+          for dir in "${dirs[@]}"; do
+            name=$(basename "$dir")
+            f="${dir}SKILL.md"
+            if [ ! -s "$f" ]; then echo "FAIL: $f missing or empty"; fail=1; continue; fi
             for field in name description version author; do
-              if ! grep -q "^${field}:" "$FILE"; then
-                echo "FAIL: $FILE missing frontmatter field: $field"
-                FAILED=1
+              if ! grep -q "^${field}:" "$f"; then
+                echo "FAIL: $f missing frontmatter field: $field"; fail=1
               fi
             done
-            if [ "$FAILED" -eq 0 ]; then
-              echo "PASS: $FILE has all required frontmatter fields"
-            fi
+            echo "PASS: $name"
           done
-          if [ "$FAILED" -eq 1 ]; then
-            exit 1
-          fi
+          [ "$fail" -eq 0 ] || exit 1
 
-      - name: Verify all reference files exist
+      - name: Verify references, scripts, commands, and core templates exist
         run: |
-          REFERENCES=(
-            "skills/openui-forge/references/openui-lang-spec.md"
-            "skills/openui-forge/references/component-patterns.md"
-            "skills/openui-forge/references/adapter-matrix.md"
-            "skills/openui-forge/references/backend-patterns.md"
+          fail=0
+          required=(
+            skills/openui-forge/references/openui-lang-spec.md
+            skills/openui-forge/references/component-patterns.md
+            skills/openui-forge/references/adapter-matrix.md
+            skills/openui-forge/references/backend-patterns.md
+            skills/openui-forge/scripts/detect-stack.sh
+            skills/openui-forge/scripts/detect-stack.ps1
+            skills/openui-forge/scripts/validate.sh
+            skills/openui-forge/scripts/validate.ps1
+            skills/openui-forge/templates/component.tsx.template
+            skills/openui-forge/templates/library.ts.template
+            skills/openui-forge/templates/page-fullscreen.tsx.template
+            commands/openui.md
+            commands/openui-scaffold.md
+            commands/openui-component.md
+            commands/openui-integrate.md
+            commands/openui-prompt.md
+            commands/openui-validate.md
+            AGENTS.md
           )
-          MISSING=0
-          for ref in "${REFERENCES[@]}"; do
-            if [ ! -f "$ref" ]; then
-              echo "FAIL: $ref not found"
-              MISSING=1
-            else
-              echo "PASS: $ref exists"
-            fi
+          for f in "${required[@]}"; do
+            if [ ! -f "$f" ]; then echo "FAIL: $f not found"; fail=1; else echo "PASS: $f"; fi
           done
-          if [ "$MISSING" -eq 1 ]; then
-            exit 1
-          fi
+          echo "Backend handler templates present: $(ls skills/openui-forge/templates/handler-* | wc -l)"
+          [ "$fail" -eq 0 ] || exit 1
 
-      - name: Verify all template files exist
-        run: |
-          TEMPLATES=(
-            "skills/openui-forge/templates/component.tsx.template"
-            "skills/openui-forge/templates/library.ts.template"
-            "skills/openui-forge/templates/page-fullscreen.tsx.template"
-            "skills/openui-forge/templates/api-route-openai.ts.template"
-            "skills/openui-forge/templates/api-route-anthropic.ts.template"
-            "skills/openui-forge/templates/api-route-langchain.ts.template"
-            "skills/openui-forge/templates/api-route-vercel-ai.ts.template"
-            "skills/openui-forge/templates/handler-python.py.template"
-            "skills/openui-forge/templates/handler-go.go.template"
-            "skills/openui-forge/templates/handler-rust.rs.template"
-          )
-          MISSING=0
-          for tpl in "${TEMPLATES[@]}"; do
-            if [ ! -f "$tpl" ]; then
-              echo "FAIL: $tpl not found"
-              MISSING=1
-            else
-              echo "PASS: $tpl exists"
-            fi
-          done
-          if [ "$MISSING" -eq 1 ]; then
-            exit 1
-          fi
+      - name: Run detection and validation tests
+        run: bash scripts/test-detection.sh
 
-      - name: Verify all script files exist
-        run: |
-          SCRIPTS=(
-            "skills/openui-forge/scripts/detect-stack.sh"
-            "skills/openui-forge/scripts/detect-stack.ps1"
-            "skills/openui-forge/scripts/validate.sh"
-            "skills/openui-forge/scripts/validate.ps1"
-          )
-          MISSING=0
-          for script in "${SCRIPTS[@]}"; do
-            if [ ! -f "$script" ]; then
-              echo "FAIL: $script not found"
-              MISSING=1
-            else
-              echo "PASS: $script exists"
-            fi
-          done
-          if [ "$MISSING" -eq 1 ]; then
-            exit 1
-          fi
-
-      - name: Verify all command files exist
-        run: |
-          COMMANDS=(
-            "commands/openui.md"
-            "commands/openui-scaffold.md"
-            "commands/openui-component.md"
-            "commands/openui-integrate.md"
-            "commands/openui-prompt.md"
-            "commands/openui-validate.md"
-          )
-          MISSING=0
-          for cmd in "${COMMANDS[@]}"; do
-            if [ ! -f "$cmd" ]; then
-              echo "FAIL: $cmd not found"
-              MISSING=1
-            else
-              echo "PASS: $cmd exists"
-            fi
-          done
-          if [ "$MISSING" -eq 1 ]; then
-            exit 1
-          fi
-
-      - name: Check that no SKILL.md is empty
-        run: |
-          SKILLS=(
-            "openui-forge"
-            "openui-forge-openai"
-            "openui-forge-anthropic"
-            "openui-forge-langchain"
-            "openui-forge-python"
-            "openui-forge-go"
-            "openui-forge-rust"
-            "openui-forge-vercel"
-            "openui-forge-zh"
-          )
-          EMPTY=0
-          for skill in "${SKILLS[@]}"; do
-            FILE="skills/$skill/SKILL.md"
-            if [ ! -s "$FILE" ]; then
-              echo "FAIL: $FILE is empty"
-              EMPTY=1
-            else
-              echo "PASS: $FILE is not empty"
-            fi
-          done
-          if [ "$EMPTY" -eq 1 ]; then
-            exit 1
-          fi
-
-      - name: Install skills CLI and verify all skill variants can be added (registers on skills.sh)
-        # Using the public GitHub URL (not `.`) so each install is attributed to
-        # the repo on skills.sh. skills.sh is a telemetry index: a per-skill page
-        # only appears after the first `npx skills add <url> --skill <name>` runs.
-        # Iterating every variant here makes the published-variants set self-healing.
-        # The `skills` CLI is pinned and runs with --ignore-scripts so a hijacked
-        # release cannot execute arbitrary postinstall code under GITHUB_TOKEN.
+      - name: Install every skill variant (registers on skills.sh)
+        # Public GitHub URL so each install is attributed to the repo on skills.sh.
+        # skills.sh is a telemetry index: a per-skill page appears after the first
+        # `npx skills add <url> --skill <name>`. Discovering the list from skills/*/
+        # makes the published-variants set self-healing. The CLI is pinned and runs
+        # with --ignore-scripts so a hijacked release cannot execute postinstall code.
         env:
           NPM_CONFIG_IGNORE_SCRIPTS: "true"
         run: |
-          SKILLS=(
-            "openui-forge"
-            "openui-forge-openai"
-            "openui-forge-anthropic"
-            "openui-forge-langchain"
-            "openui-forge-vercel"
-            "openui-forge-python"
-            "openui-forge-go"
-            "openui-forge-rust"
-            "openui-forge-zh"
-          )
-          for skill in "${SKILLS[@]}"; do
-            echo "--- Installing $skill ---"
-            npx --yes skills@^1.5 add https://github.com/OthmanAdi/openui-forge --skill "$skill" -g -y
+          for dir in skills/*/; do
+            name=$(basename "$dir")
+            echo "--- Installing $name ---"
+            npx --yes skills@^1.5 add https://github.com/OthmanAdi/openui-forge --skill "$name" -g -y
           done
