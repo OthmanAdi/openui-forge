@@ -1,7 +1,7 @@
 ---
 name: openui-forge-anthropic
 description: OpenUI generative UI with Anthropic Claude SDK backend. Stream conversion to OpenAI NDJSON format.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

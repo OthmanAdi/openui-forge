@@ -1,7 +1,7 @@
 ---
 name: openui-forge
 description: Build generative UI with OpenUI — any LLM provider, any backend language. Scaffold, integrate, validate.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

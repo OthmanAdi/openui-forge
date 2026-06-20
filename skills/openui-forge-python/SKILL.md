@@ -1,7 +1,7 @@
 ---
 name: openui-forge-python
 description: OpenUI generative UI with Python FastAPI backend. OpenAI and Anthropic SDK variants.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

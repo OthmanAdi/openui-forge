@@ -1,7 +1,7 @@
 ---
 name: openui-forge-zh
 description: 使用 OpenUI 构建生成式 UI 应用 — 支持任意 LLM 提供商、任意后端语言。脚手架、集成、验证。
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

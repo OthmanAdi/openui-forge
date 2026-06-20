@@ -1,7 +1,7 @@
 ---
 name: openui-forge-langchain
 description: OpenUI generative UI with LangChain/LangGraph backend. Supports ChatOpenAI and ChatAnthropic.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

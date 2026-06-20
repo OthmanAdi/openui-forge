@@ -1,7 +1,7 @@
 ---
 name: openui-forge-vercel
 description: OpenUI generative UI with Vercel AI SDK. streamText, toUIMessageStreamResponse, and tools support.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.0] - 2026-06-20
+
+### Added
+- Five new backend-language variants, each with a handler template and a stack-specific SKILL: C# (ASP.NET Core Minimal API on .NET 10), Java (Spring WebFlux), Ruby (Rails ActionController::Live), PHP (Laravel streamed responses), and Elixir (Phoenix send_chunked).
+- Vue 3 (`@openuidev/vue-lang`) and Svelte 5 (`@openuidev/svelte-lang`) runtimes documented alongside React, with `@openuidev/lang-core` named as the framework-agnostic substrate.
+- A "Provider routing" section with exact `OPENAI_BASE_URL` values for Gemini, OpenRouter, xAI, DeepSeek, Groq, Mistral, Together, Fireworks, Ollama, and LM Studio, plus an Azure OpenAI caveat (deployment-name model, version path, partial parity).
+- Root `AGENTS.md`, plus native `.kiro/steering/openui-forge.md` and `.continue/rules/openui-forge.md`, so cross-tool agents find the skill.
+- A fixture-based test harness (`scripts/test-detection.sh`) that exercises the detection and validation scripts, wired into CI.
+
+### Changed
+- Vercel AI SDK variant rewritten to OpenUI's official pattern (`useChat` from `@ai-sdk/react` driving a per-message `Renderer` from `@openuidev/react-lang`) on AI SDK v6, verified against the upstream `examples/vercel-ai-chat`.
+- Node floor raised to 22 (24 LTS recommended). React floor stated as 18.3.1 (19+ recommended) to match the published peer range `^18.3.1 || ^19.0.0`.
+- Streaming story reconciled: non-JS backends default to SSE with `openAIAdapter()`; the NDJSON variant pairs with `openAIReadableStreamAdapter()` (documented in `backend-patterns.md`).
+- Python examples use `AsyncOpenAI` / `AsyncAnthropic` and target the `openai` 2.x line. Go targets `go 1.24`. Rust uses `reqwest` 0.13 with the `json` feature and `OnceLock` in place of `static mut`.
+- CI discovers skills dynamically, runs the test harness, pins actions by commit SHA, and uses Node 22.
+- CSS guidance leads with `@openuidev/react-ui/index.css`.
+
+### Fixed
+- `detect-stack.sh` emitted no JSON and exited non-zero on fresh projects (a `pipefail` on an empty `grep`), always reported the provider as OpenAI, and failed React-version extraction outside GNU `grep`. `detect-stack.ps1` serialized booleans as quoted strings.
+- `handler-python.py.template` emitted `data: [DONE]` twice. The OpenAI route now returns `application/x-ndjson` to match `toReadableStream()`. The Go and Rust templates had incorrect adapter notes and a missing dependency.
+
+### Removed
+- The inert `.kiro/skills` and `.continue/skills` mirrors (Kiro reads `.kiro/steering/` and Continue reads `.continue/rules/`, not a `skills/` directory).
+
 ## [1.1.0] - 2026-05-22
 
 ### Fixed

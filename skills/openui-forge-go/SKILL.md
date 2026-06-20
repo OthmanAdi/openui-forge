@@ -1,7 +1,7 @@
 ---
 name: openui-forge-go
 description: OpenUI generative UI with Go (net/http) backend. Direct OpenAI API streaming via HTTP.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 

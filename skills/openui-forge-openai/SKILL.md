@@ -1,7 +1,7 @@
 ---
 name: openui-forge-openai
 description: OpenUI generative UI with OpenAI SDK backend. Streaming chat completions with gpt-5.5 (or any current OpenAI-compatible model).
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
