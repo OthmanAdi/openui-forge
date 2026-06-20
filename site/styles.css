@@ -4,7 +4,7 @@
  */
 
 @import url("./tokens.css");
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 
 /* ----- Reset ----- */
 
@@ -26,6 +26,18 @@ body {
   line-height: 1.55;
   font-feature-settings: "ss01", "cv11";
 }
+
+/* Faint marble/film grain over the warm paper — fixed, never repaints on scroll. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+main, .nav, .footer { position: relative; z-index: 1; }
 
 p { margin: 0; }
 h1, h2, h3, h4 { margin: 0; font-weight: 500; }
@@ -161,7 +173,7 @@ a:focus-visible {
   content: "";
   width: var(--space-xl);
   height: 1px;
-  background: var(--color-ink-3);
+  background: linear-gradient(90deg, var(--color-gold-deep), var(--color-gold-soft));
   display: inline-block;
 }
 .hero-h {
@@ -182,7 +194,7 @@ a:focus-visible {
 .hero-h .amp {
   font-family: var(--font-display);
   font-style: italic;
-  color: var(--color-accent);
+  color: var(--color-gold-deep);
   font-weight: 400;
 }
 .hero-side {
@@ -340,7 +352,7 @@ a:focus-visible {
   font-weight: 400;
   font-size: clamp(3rem, 7vw, 5rem);
   line-height: 0.9;
-  color: var(--color-accent);
+  color: var(--color-gold-deep);
   letter-spacing: -0.03em;
 }
 .ledger-label {
@@ -368,12 +380,15 @@ a:focus-visible {
 /* ----- Stack matrix ----- */
 
 .stacks { padding: var(--space-4xl) 0; border-bottom: var(--rule-thin); }
+/* Double-bezel: the table sits in a gilded tray (outer shell) on its own plate. */
 .stack-table-wrap {
-  border: var(--rule-thin);
-  border-radius: var(--radius-md);
+  border: var(--rule-gold);
+  border-radius: var(--radius-lg);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--color-paper);
+  padding: 3px;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.5), 0 1px 2px oklch(58% 0.09 78 / 0.08);
 }
 .stack-table {
   width: 100%;

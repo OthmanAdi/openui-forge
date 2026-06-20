@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>OpenUI Forge — OpenUI, anywhere your code already lives</title>
-<meta name="description" content="Cross-IDE, multi-stack agent skill for OpenUI. Drops the Open Standard for Generative UI into existing codebases across seven backends and eleven agent platforms.">
+<meta name="description" content="Cross-IDE, multi-stack agent skill for OpenUI. Drops the Open Standard for Generative UI into existing codebases across twelve backends and eleven agent platforms.">
 <meta property="og:title" content="OpenUI Forge">
 <meta property="og:description" content="Cross-IDE, multi-stack agent skill for OpenUI. Any LLM provider, any backend language, eleven agent platforms.">
 <meta property="og:type" content="website">
@@ -76,9 +76,9 @@
     <div class="frame">
       <ol class="ledger-list">
         <li>
-          <span class="ledger-n">07</span>
+          <span class="ledger-n">12</span>
           <span class="ledger-label">backend stacks</span>
-          <span class="ledger-note">OpenAI · Anthropic · LangChain · Vercel AI · Python (FastAPI) · Go (net/http) · Rust (Axum)</span>
+          <span class="ledger-note">OpenAI · Anthropic · LangChain · Vercel AI · Python · Go · Rust · C# · Java · Ruby · PHP · Elixir</span>
         </li>
         <li>
           <span class="ledger-n">11</span>
@@ -86,9 +86,9 @@
           <span class="ledger-note">Claude Code · Cursor · Codex CLI · Gemini CLI · Kiro · Continue · Factory · OpenCode · Pi · Mastra · CodeBuddy</span>
         </li>
         <li>
-          <span class="ledger-n">09</span>
+          <span class="ledger-n">14</span>
           <span class="ledger-label">installable skill variants</span>
-          <span class="ledger-note">Core skill plus seven stack-specific variants plus Chinese localisation</span>
+          <span class="ledger-note">Core skill plus twelve stack-specific variants plus Chinese localisation</span>
         </li>
         <li>
           <span class="ledger-n">01</span>
@@ -103,7 +103,7 @@
   <section id="stacks" class="stacks">
     <div class="frame">
       <header class="section-head">
-        <h2>The seven supported stacks.</h2>
+        <h2>The twelve supported stacks.</h2>
         <p>Each row is the verified, source-of-truth pattern for that stack's adapter pairing. Pick by the language your existing backend speaks.</p>
       </header>
       <div class="stack-table-wrap">
@@ -159,6 +159,36 @@
               <td>SSE via Axum <code>Sse&lt;…&gt;</code></td>
               <td><code>openAIAdapter()</code></td>
             </tr>
+            <tr>
+              <td><span class="stack-name">C# · ASP.NET Core</span></td>
+              <td><span class="stack-lang">C#</span></td>
+              <td>SSE passthrough</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Java · Spring WebFlux</span></td>
+              <td><span class="stack-lang">Java</span></td>
+              <td>SSE</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Ruby · Rails</span></td>
+              <td><span class="stack-lang">Ruby</span></td>
+              <td>SSE passthrough</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">PHP · Laravel</span></td>
+              <td><span class="stack-lang">PHP</span></td>
+              <td>SSE passthrough</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
+            <tr>
+              <td><span class="stack-name">Elixir · Phoenix</span></td>
+              <td><span class="stack-lang">Elixir</span></td>
+              <td>SSE passthrough</td>
+              <td><code>openAIAdapter()</code></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -189,8 +219,9 @@
         <article>
           <h3><em>Non-JavaScript</em> backends.</h3>
           <p>
-            Python FastAPI, Go net/http, Rust Axum. Each handler ships the
-            OpenAI-compatible SSE format the React renderer expects, with
+            Python FastAPI, Go net/http, Rust Axum, plus C# ASP.NET Core, Java
+            Spring, Ruby Rails, PHP Laravel, and Elixir Phoenix. Each handler
+            ships the OpenAI-compatible SSE format the renderer expects, with
             adapter pairings verified against canonical source.
           </p>
         </article>
@@ -258,6 +289,13 @@ npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-pytho
 npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-go</span>          -g
 npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-rust</span>        -g
 
+<span class="c"># Additional backend languages</span>
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-csharp</span>      -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-java</span>        -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-ruby</span>        -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-php</span>         -g
+npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-elixir</span>      -g
+
 <span class="c"># Chinese localisation</span>
 npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-zh</span>          -g</pre>
       </div>
@@ -270,7 +308,7 @@ npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-zh</s
 <footer class="footer">
   <div class="frame">
     <p class="footer-statement">
-      Built <em>carefully</em>. Tested across stacks. Open <em>MIT</em>.
+      Built <em>carefully</em>. Verified against canonical source. Open <em>MIT</em>.
     </p>
     <div class="footer-meta">
       <a href="https://github.com/OthmanAdi/openui-forge">Repository</a>
@@ -278,9 +316,10 @@ npx skills add OthmanAdi/openui-forge --skill <span class="k">openui-forge-zh</s
       <a href="https://github.com/thesysdev/openui">OpenUI on GitHub</a>
       <a href="https://discord.com/invite/Pbv5PsqUSv">OpenUI Discord</a>
       <a href="https://skills.sh/OthmanAdi/openui-forge">skills.sh listing</a>
+      <a href="https://github.com/thesysdev/openui/blob/main/ADOPTERS.md">OpenUI ADOPTERS.md</a>
       <a href="https://othmanadi.com">othmanadi.com</a>
     </div>
-    <p class="footer-coda">Made by OthmanAdi · MIT licensed · v1.1.0</p>
+    <p class="footer-coda">Made by OthmanAdi · MIT licensed · v1.2.0</p>
   </div>
 </footer>
 
