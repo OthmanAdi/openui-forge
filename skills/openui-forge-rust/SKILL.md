@@ -16,7 +16,7 @@ Build generative UI apps with a React frontend + Rust Axum backend. Async SSE st
 
 ## Prerequisites
 
-- Node.js >= 18 + React >= 18.3.1 (19+ recommended) (frontend)
+- Node.js >= 22 (24 LTS recommended) + React >= 18.3.1 (19+ recommended) (frontend)
 - Rust >= 1.75 with Cargo (backend)
 - `OPENAI_API_KEY` environment variable set
 
@@ -47,7 +47,7 @@ edition = "2021"
 axum = "0.8"
 http = "1"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.13", features = ["stream"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-stream = "0.3"

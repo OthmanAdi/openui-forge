@@ -1,6 +1,8 @@
 "use client";
 
-import "@openuidev/react-ui/components.css";
+// Full stylesheet. The package also exports granular entry points
+// "@openuidev/react-ui/components.css" and "@openuidev/react-ui/defaults.css".
+import "@openuidev/react-ui/index.css";
 
 import { FullScreen } from "@openuidev/react-ui";
 import {
@@ -12,8 +14,8 @@ import { ${LIBRARY_NAME} } from "${LIBRARY_IMPORT_PATH}";
 
 // FullScreen renders a full-viewport chat interface with built-in message
 // history, input field, and streaming display. processMessage connects it
-// to your backend; streamProtocol + messageFormat tell it how to parse the
-// streaming response.
+// to your backend; streamProtocol tells it how to parse the streaming
+// response.
 //
 // Pick streamProtocol to match your backend's output format:
 //   - SSE (lines prefixed with `data: ...\n\n`)    -> openAIAdapter()
@@ -40,10 +42,15 @@ export default function ${PAGE_NAME}() {
       // If your backend emits NDJSON (e.g. via OpenAI's `response.toReadableStream()`),
       // switch to: streamProtocol={openAIReadableStreamAdapter()}
       streamProtocol={openAIAdapter()}
-      // messageFormat controls how conversation history is serialized
-      // before being sent to processMessage. openAIMessageFormat produces
-      // the { role, content } shape that OpenAI (and compatible) APIs expect.
-      messageFormat={openAIMessageFormat}
+      // NOTE: no messageFormat prop here. When you supply processMessage,
+      // OpenUI hands you the RAW internal messages and does NOT apply
+      // messageFormat to them; messageFormat.toApi() only runs on the
+      // built-in apiUrl path (i.e. when processMessage is omitted). So the
+      // single openAIMessageFormat.toApi(messages) call above is the one and
+      // only conversion. Passing messageFormat as well would be a no-op on
+      // this path (and implies a double-conversion that never happens), so we
+      // drop it. Verified against the compiled @openuidev/react-headless store
+      // (sendMessage = processMessage ?? defaultFetch-with-toApi).
     />
   );
 }

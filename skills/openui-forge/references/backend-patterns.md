@@ -1,6 +1,8 @@
 # Backend Patterns
 
-Complete, production-ready backend examples for Python, Go, and Rust. Every example streams OpenAI-compatible NDJSON that `openAIReadableStreamAdapter()` consumes on the React frontend.
+Complete, production-ready backend examples for Python, Go, and Rust. Every example streams OpenAI-compatible NDJSON that `openAIReadableStreamAdapter()` consumes on the frontend (React, Vue 3, or Svelte 5).
+
+> **NDJSON vs SSE — this file is the NDJSON variant.** These examples emit NDJSON (Content-Type `text/plain`, one JSON per line) and pair with `openAIReadableStreamAdapter()` on the frontend. The per-stack SKILL.md files and `templates/` show the SSE variant (`data:` prefix, `text/event-stream`) paired with `openAIAdapter()`. Both work — pick one and keep the frontend adapter matched to the backend body.
 
 ---
 
@@ -29,10 +31,10 @@ Uses the `openai` Python package with streaming, converts to NDJSON via `Streami
 ### requirements.txt
 
 ```
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-openai==1.59.3
-python-dotenv==1.0.1
+fastapi==0.138.0
+uvicorn[standard]==0.49.0
+openai==2.43.0
+python-dotenv==1.2.2
 ```
 
 ### main.py
@@ -47,7 +49,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 load_dotenv()
 
@@ -55,13 +57,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent / "system-prompt.txt"
 system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
@@ -79,15 +81,16 @@ async def chat(request: Request):
             "content": msg.get("content", ""),
         })
 
-    stream = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
-        messages=api_messages,
-        stream=True,
-    )
-
-    def generate():
+    async def generate():
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-        for chunk in stream:
+
+        stream = await client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+            messages=api_messages,
+            stream=True,
+        )
+
+        async for chunk in stream:
             delta = chunk.choices[0].delta if chunk.choices else None
             finish_reason = chunk.choices[0].finish_reason if chunk.choices else None
 
@@ -139,10 +142,10 @@ Uses the `anthropic` Python package. Converts Anthropic streaming events to Open
 ### requirements.txt
 
 ```
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-anthropic==0.42.0
-python-dotenv==1.0.1
+fastapi==0.138.0
+uvicorn[standard]==0.49.0
+anthropic==0.111.0
+python-dotenv==1.2.2
 ```
 
 ### main.py
@@ -157,7 +160,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 load_dotenv()
 
@@ -165,13 +168,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent / "system-prompt.txt"
 system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
@@ -190,16 +193,17 @@ async def chat(request: Request):
             continue
         api_messages.append({"role": role, "content": content})
 
-    def generate():
+    async def generate():
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
-        with client.messages.stream(
+        async with client.messages.stream(
+            # ANTHROPIC_MODEL alternatives: claude-opus-4-8, claude-haiku-4-5, claude-fable-5
             model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             max_tokens=4096,
             system=system_prompt,
             messages=api_messages,
         ) as stream:
-            for event in stream:
+            async for event in stream:
                 if event.type == "content_block_delta":
                     if hasattr(event.delta, "text"):
                         line = json.dumps({
@@ -244,14 +248,14 @@ python main.py
 
 ## Go (net/http)
 
-Uses `net/http` with direct HTTP calls to the OpenAI API. Reads `system-prompt.txt` at startup. Streams SSE from OpenAI and converts to NDJSON passthrough.
+Uses `net/http` with direct HTTP calls to the OpenAI API. Reads `system-prompt.txt` at startup. Streams SSE from OpenAI and converts to NDJSON passthrough. (The official `github.com/openai/openai-go/v3` SDK is an alternative to raw `net/http` if you prefer a typed client.)
 
 ### go.mod
 
 ```
 module openui-backend
 
-go 1.22
+go 1.24
 
 require (
 	github.com/joho/godotenv v1.5.1
@@ -394,6 +398,8 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
+	// Raise the per-line cap (default 64KB) so long SSE lines aren't dropped.
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -456,7 +462,7 @@ edition = "2021"
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-stream = "0.3"
@@ -470,6 +476,7 @@ dotenvy = "0.15"
 ```rust
 use std::fs;
 use std::net::SocketAddr;
+use std::sync::OnceLock;
 
 use axum::{
     body::Body,
@@ -481,7 +488,7 @@ use axum::{
 };
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 #[derive(Deserialize)]
 struct ChatRequest {
@@ -521,10 +528,10 @@ struct NdjsonDelta {
     content: Option<String>,
 }
 
-static mut SYSTEM_PROMPT: Option<String> = None;
+static SYSTEM_PROMPT: OnceLock<String> = OnceLock::new();
 
 fn get_system_prompt() -> &'static str {
-    unsafe { SYSTEM_PROMPT.as_deref().expect("System prompt not loaded") }
+    SYSTEM_PROMPT.get().expect("System prompt not loaded")
 }
 
 async fn chat_handler(Json(body): Json<ChatRequest>) -> impl IntoResponse {
@@ -637,14 +644,21 @@ async fn main() {
 
     let prompt = fs::read_to_string("system-prompt.txt")
         .expect("Failed to read system-prompt.txt");
-    unsafe {
-        SYSTEM_PROMPT = Some(prompt);
-    }
+    SYSTEM_PROMPT.set(prompt).unwrap();
 
+    // CORS — lock the origin to the configured frontend. Avoid `Any` here: it
+    // makes the API callable from any site, including ones that can burn through
+    // your provider API key.
+    let frontend_origin =
+        std::env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(
+            frontend_origin
+                .parse::<axum::http::HeaderValue>()
+                .expect("FRONTEND_ORIGIN must be a valid origin"),
+        )
+        .allow_methods([axum::http::Method::POST, axum::http::Method::OPTIONS])
+        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION]);
 
     let app = Router::new()
         .route("/api/chat", post(chat_handler))
