@@ -6,7 +6,7 @@ Complete specification of the OpenUI Lang DSL. This is what LLMs output and the 
 
 ## Overview
 
-OpenUI Lang is a line-oriented domain-specific language designed for LLM output. Each line contains exactly one statement. The format is intentionally minimal to reduce token usage (67% fewer tokens than equivalent JSON) and to support progressive rendering as tokens stream in.
+OpenUI Lang is a line-oriented domain-specific language designed for LLM output. Each line contains exactly one statement. The format is intentionally minimal to reduce token usage (up to 67% more token-efficient than JSON) and to support progressive rendering as tokens stream in.
 
 ```
 identifier = Expression
@@ -295,7 +295,7 @@ faq = FAQ(items)
 items = [q1, q2, q3, q4]
 q1 = {question: "What is OpenUI?", answer: "OpenUI is a streaming-first generative UI framework that lets LLMs render interactive React components."}
 q2 = {question: "Which LLM providers are supported?", answer: "Any provider that can output text: OpenAI, Anthropic, Google, Mistral, local models, and more."}
-q3 = {question: "Do I need React 19?", answer: "Yes, OpenUI requires React 19 or later as a peer dependency."}
+q3 = {question: "Do I need React 19?", answer: "No. The React peer range is ^18.3.1 || ^19.0.0, so React 18.3.1 or newer works (19+ recommended)."}
 q4 = {question: "Can I use my own components?", answer: "Absolutely. Define components with Zod schemas and React renderers using defineComponent."}
 ```
 
@@ -325,7 +325,7 @@ heading = Header("Framework Comparison")
 comparison = ComparisonTable(columns, features)
 columns = ["Feature", "OpenUI", "Vercel AI SDK", "StreamUI"]
 features = [f1, f2, f3, f4, f5]
-f1 = ["Token Efficiency", "67% fewer tokens", "JSON overhead", "HTML overhead"]
+f1 = ["Token Efficiency", "67% more efficient", "JSON overhead", "HTML overhead"]
 f2 = ["Streaming", "Progressive render", "Partial JSON", "SSR chunks"]
 f3 = ["LLM Agnostic", "Any provider", "Vercel providers", "OpenAI only"]
 f4 = ["Backend Language", "Any language", "JavaScript only", "JavaScript only"]

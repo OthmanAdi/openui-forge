@@ -62,7 +62,7 @@ if (Test-Path "node_modules/@openuidev") {
     }
 }
 
-# ── Check 2: React version >= 19 ────────────────────────────────────────────
+# ── Check 2: React version >= 18.3.1 (peer floor; 19+ recommended) ──────────
 
 $reactVer = $null
 
@@ -83,11 +83,14 @@ if (-not $reactVer -and (Test-Path "package.json")) {
 if (-not $reactVer) {
     Fail "React version: not found"
 } else {
-    $major = ($reactVer -split '\.')[0] -as [int]
-    if ($major -ge 19) {
-        Pass "React version: $reactVer (>= 19)"
+    # Peer range ^18.3.1 || ^19.0.0 — accept >= 18.3.1 (19+ recommended).
+    $parts = (($reactVer -replace '[^0-9.]', '') + '.0.0').Split('.')
+    $v = $null
+    try { $v = [version]"$($parts[0]).$($parts[1]).$($parts[2])" } catch {}
+    if ($v -and $v -ge [version]'18.3.1') {
+        Pass "React version: $reactVer (>= 18.3.1; 19+ recommended)"
     } else {
-        Fail "React version: found $reactVer, need >= 19.0.0"
+        Fail "React version: found $reactVer, need >= 18.3.1 (19+ recommended)"
     }
 }
 

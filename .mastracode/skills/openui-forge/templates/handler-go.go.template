@@ -3,14 +3,14 @@
 // Build and run:
 //   go build -o server . && ./server
 //
-// The frontend expects OpenAI-compatible NDJSON streaming at POST /api/chat.
+// The frontend expects OpenAI-compatible SSE streaming at POST /api/chat.
 //
 // -------------------------------------------------------------------------
 // go.mod contents (place in same directory):
 // -------------------------------------------------------------------------
 // module ${MODULE_PATH}
 //
-// go 1.22
+// go 1.24
 //
 // (no external dependencies — uses only the standard library and raw HTTP
 //  calls to the OpenAI API)
@@ -153,8 +153,9 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Stream the SSE response through to the client.
-	// OpenAI returns SSE lines like "data: {...}\n\n". We pass them through
-	// so the client-side openAIReadableStreamAdapter can parse them.
+	// OpenAI returns SSE lines like "data: {...}\n\n". We forward them
+	// verbatim (keeping the "data:" prefix and text/event-stream content
+	// type) so the client-side openAIAdapter can parse the SSE stream.
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -166,6 +167,8 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	scanner := bufio.NewScanner(apiResp.Body)
+	// SSE data lines can exceed bufio.Scanner's default 64KB line cap; raise it to 1MB.
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 

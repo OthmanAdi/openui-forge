@@ -1,7 +1,7 @@
 ---
 name: openui-forge-anthropic
 description: OpenUI generative UI with Anthropic Claude SDK backend. Stream conversion to OpenAI NDJSON format.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -16,7 +16,7 @@ Build generative UI apps with OpenUI + Anthropic Claude. Converts Anthropic stre
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 18.3.1 (19+ recommended)
+- Node.js >= 22 (24 LTS recommended), React >= 18.3.1 (19+ recommended)
 - `ANTHROPIC_API_KEY` environment variable set
 - Next.js project (App Router recommended)
 
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     additionalRules: ["Always use Stack as root when combining multiple components."],
   });
 
+  // ANTHROPIC_MODEL alternatives: claude-opus-4-8, claude-haiku-4-5, claude-fable-5
   const stream = client.messages.stream({
     model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
     max_tokens: 4096,

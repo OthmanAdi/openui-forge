@@ -34,12 +34,12 @@ react_version="null"
 if [[ "$has_package_json" == "true" ]]; then
     # Try node_modules first (actual installed version)
     if [[ -f "node_modules/react/package.json" ]]; then
-        ver=$(grep -oP '"version"\s*:\s*"\K[^"]+' node_modules/react/package.json 2>/dev/null || true)
+        ver=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' node_modules/react/package.json 2>/dev/null | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
         [[ -n "$ver" ]] && react_version="\"$ver\""
     fi
     # Fall back to declared dependency
     if [[ "$react_version" == "null" ]]; then
-        ver=$(grep -oP '"react"\s*:\s*"[\^~]?\K[0-9][^"]*' package.json 2>/dev/null || true)
+        ver=$(grep -oE '"react"[[:space:]]*:[[:space:]]*"[~^]?[0-9][^"]*"' package.json 2>/dev/null | head -n1 | sed -E 's/.*"([~^]?[0-9][^"]*)"$/\1/; s/^[~^]//' || true)
         [[ -n "$ver" ]] && react_version="\"$ver\""
     fi
 fi
@@ -89,7 +89,7 @@ fi
 
 has_frontend_page=false
 page_hit=$(sgrep -lE "(FullScreen|Copilot|ChatProvider)" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" . \
-    | grep -v node_modules | head -n1)
+    | grep -v node_modules | head -n1 || true)
 if [[ -n "$page_hit" ]]; then
     has_frontend_page=true
 fi
@@ -98,7 +98,7 @@ fi
 
 has_css_imports=false
 css_hit=$(sgrep -l "@openuidev/react-ui" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.css" . \
-    | grep -v node_modules | head -n1)
+    | grep -v node_modules | head -n1 || true)
 if [[ -n "$css_hit" ]]; then
     has_css_imports=true
 fi
@@ -107,28 +107,32 @@ fi
 
 backend_language="typescript"  # default assumption for Node projects
 if find . -maxdepth 3 -name "*.py" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    py_hit=$(sgrep -lE "(fastapi|flask|openai|anthropic|langchain)" --include="*.py" . | grep -v node_modules | head -n1)
+    py_hit=$(sgrep -lE "(fastapi|flask|openai|anthropic|langchain)" --include="*.py" . | grep -v node_modules | head -n1 || true)
     [[ -n "$py_hit" ]] && backend_language="python"
 fi
 if find . -maxdepth 3 -name "*.go" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    go_hit=$(sgrep -lE "(net/http|gin|echo|fiber)" --include="*.go" . | grep -v node_modules | head -n1)
+    go_hit=$(sgrep -lE "(net/http|gin|echo|fiber)" --include="*.go" . | grep -v node_modules | head -n1 || true)
     [[ -n "$go_hit" ]] && backend_language="go"
 fi
 if find . -maxdepth 3 -name "*.rs" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    rs_hit=$(sgrep -lE "(actix|axum|rocket|hyper)" --include="*.rs" . | grep -v node_modules | head -n1)
+    rs_hit=$(sgrep -lE "(actix|axum|rocket|hyper)" --include="*.rs" . | grep -v node_modules | head -n1 || true)
     [[ -n "$rs_hit" ]] && backend_language="rust"
 fi
 
 # ── 14. LLM provider ────────────────────────────────────────────────────────
 
+# Use a real grep here (not sgrep): sgrep ends in `|| true` and always returns 0,
+# which would make every branch below match. ts_has returns non-zero on no match.
+ts_has() { grep -rqE "$1" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null; }
+
 llm_provider="unknown"
-if sgrep -qE "from ['\"]openai['\"]|require\(['\"]openai['\"]" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" .; then
+if ts_has "from ['\"]openai['\"]|require\(['\"]openai['\"]"; then
     llm_provider="openai"
-elif sgrep -qE "@anthropic-ai/sdk" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" .; then
+elif ts_has "@anthropic-ai/sdk"; then
     llm_provider="anthropic"
-elif sgrep -qE "@langchain/" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" .; then
+elif ts_has "@langchain/"; then
     llm_provider="langchain"
-elif sgrep -qE "from ['\"]ai['\"]|require\(['\"]ai['\"]" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" .; then
+elif ts_has "from ['\"]ai['\"]|require\(['\"]ai['\"]"; then
     llm_provider="vercel-ai"
 fi
 

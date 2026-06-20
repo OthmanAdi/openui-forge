@@ -110,7 +110,7 @@ async def stream_openai(messages: list[dict]) -> AsyncGenerator[str, None]:
 #             yield openai_chunk(completion_id, text, None)
 #
 #     yield openai_chunk(completion_id, "", "stop")
-    yield "data: [DONE]\n\n"
+#     yield "data: [DONE]\n\n"
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 ---
 name: openui-forge-go
 description: OpenUI generative UI with Go (net/http) backend. Direct OpenAI API streaming via HTTP.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -16,8 +16,8 @@ Build generative UI apps with a React frontend + Go backend. Streams OpenAI API 
 
 ## Prerequisites
 
-- Node.js >= 18 + React >= 18.3.1 (19+ recommended) (frontend)
-- Go >= 1.23 (backend; older releases are out of security support)
+- Node.js >= 22 (24 LTS recommended) + React >= 18.3.1 (19+ recommended) (frontend)
+- Go >= 1.24 (backend; 1.23 and older are out of security support as of Go 1.26)
 - `OPENAI_API_KEY` environment variable set
 
 ## Quick Start
@@ -40,7 +40,7 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 ```
 module openui-backend
 
-go 1.23
+go 1.24
 
 require (
     github.com/joho/godotenv v1.5.1
@@ -187,7 +187,9 @@ export default function ChatPage() {
 }
 ```
 
-> The Go backend forwards OpenAI's SSE stream verbatim (`io.Copy`). Pair it with `openAIAdapter()` on the frontend. `openAIReadableStreamAdapter()` is for NDJSON (no `data:` prefix) and will silently produce no output here.
+> The Go backend forwards OpenAI's SSE stream line-by-line with a `bufio.Scanner` loop, flushing after each line (no `io.Copy`), so the client sees tokens as they arrive. Pair it with `openAIAdapter()` on the frontend. `openAIReadableStreamAdapter()` is for NDJSON (no `data:` prefix) and will silently produce no output here.
+>
+> An official OpenAI Go SDK exists (`github.com/openai/openai-go/v3`, ~v3.41.0, requires Go 1.22+) as an alternative to hand-rolling the HTTP call. This skill keeps raw `net/http` as the dependency-free default. Note the SDK still ships small, limited breaking changes between releases (per its own README, some backwards-incompatible changes land in minor versions), so pin a version if you adopt it.
 
 ## System Prompt Generation
 
@@ -214,4 +216,4 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 | `system-prompt.txt not found` | File missing from backend dir | Run CLI generate command |
 | 502 Bad Gateway | OpenAI API unreachable or key invalid | Check `OPENAI_API_KEY` and network |
 | Stream not flushing | Missing `http.Flusher` | Ensure handler calls `flusher.Flush()` |
-| Empty response | Body not forwarded | Verify `io.Copy` pipes OpenAI response to client |
+| Empty response | Body not forwarded | Verify the `bufio.Scanner` loop writes and flushes each line |

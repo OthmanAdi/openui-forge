@@ -17,14 +17,28 @@ export const ${LIBRARY_NAME} = createLibrary({
   name: "${LIBRARY_NAME}",
   description: "${LIBRARY_DESCRIPTION}",
 
+  // The top-level `components` array is what actually REGISTERS the component
+  // objects with the library. createLibrary builds its component record solely
+  // from this array — `componentGroups` below only references components by name
+  // for discoverability and does NOT register them. Omit this and the library
+  // has zero usable components.
+  components: [
+    ${LAYOUT_COMPONENTS}
+    ${DATA_DISPLAY_COMPONENTS}
+    ${INPUT_COMPONENTS}
+    ${FEEDBACK_COMPONENTS}
+  ],
+
   // Components are grouped for LLM discoverability.
   // The model sees group names + descriptions to decide which components to use.
+  // Each group's `components` entries are component NAME strings, matching the
+  // names registered via the `components` array above.
   componentGroups: [
     {
       name: "Layout",
       description: "Structural layout primitives for arranging content on screen",
       components: [
-        // e.g. Container, Grid, Stack, Spacer
+        // Name strings, e.g. "Container", "Grid", "Stack", "Spacer"
         ${LAYOUT_COMPONENTS}
       ],
     },
@@ -32,7 +46,7 @@ export const ${LIBRARY_NAME} = createLibrary({
       name: "Data Display",
       description: "Components for presenting data, text, and media",
       components: [
-        // e.g. Card, Table, Badge, Avatar
+        // Name strings, e.g. "Card", "Table", "Badge", "Avatar"
         ${DATA_DISPLAY_COMPONENTS}
       ],
     },
@@ -40,7 +54,7 @@ export const ${LIBRARY_NAME} = createLibrary({
       name: "Input",
       description: "Interactive form controls and user input elements",
       components: [
-        // e.g. Button, TextField, Select, Checkbox
+        // Name strings, e.g. "Button", "TextField", "Select", "Checkbox"
         ${INPUT_COMPONENTS}
       ],
     },
@@ -48,7 +62,7 @@ export const ${LIBRARY_NAME} = createLibrary({
       name: "Feedback",
       description: "Components that communicate status or results to the user",
       components: [
-        // e.g. Alert, Toast, Spinner, ProgressBar
+        // Name strings, e.g. "Alert", "Toast", "Spinner", "ProgressBar"
         ${FEEDBACK_COMPONENTS}
       ],
     },
@@ -59,10 +73,27 @@ export const ${LIBRARY_NAME} = createLibrary({
 // Option B: Extend the built-in openuiLibrary
 // Use this when you want all default OpenUI components PLUS your own additions.
 // The spread merges the built-in groups with your custom groups.
+//
+// NOTE: This relies on openuiLibrary exposing `componentGroups` and `components`.
+// A built-in library does expose both: `componentGroups` (an array, or undefined
+// if the library defines none) and `components` (a name-keyed record of the
+// registered component objects). Spreading `...openuiLibrary.componentGroups`
+// therefore assumes that library actually defines groups; if it is undefined,
+// drop the spread (or guard with `...(openuiLibrary.componentGroups ?? [])`).
+// As with Option A, the top-level `components` array is what registers the
+// component objects — here we register the built-in objects via
+// `Object.values(openuiLibrary.components)` plus your custom ones, while the
+// groups keep referencing components by name string.
 // ---------------------------------------------------------------------------
 export const ${EXTENDED_LIBRARY_NAME} = createLibrary({
   name: "${EXTENDED_LIBRARY_NAME}",
   description: "Extended library combining OpenUI defaults with custom components",
+
+  // Register all built-in component objects plus your custom component objects.
+  components: [
+    ...Object.values(openuiLibrary.components),
+    ${CUSTOM_COMPONENTS}
+  ],
 
   componentGroups: [
     // Spread the built-in library groups so all default components remain available
@@ -73,6 +104,7 @@ export const ${EXTENDED_LIBRARY_NAME} = createLibrary({
       name: "Custom",
       description: "${CUSTOM_GROUP_DESCRIPTION}",
       components: [
+        // Name strings of your custom components, e.g. "MyWidget"
         ${CUSTOM_COMPONENTS}
       ],
     },

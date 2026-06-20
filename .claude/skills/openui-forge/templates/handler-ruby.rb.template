@@ -1,0 +1,166 @@
+# OpenUI backend handler — Ruby on Rails / ActionController::Live
+#
+# This is a Rails controller. Drop it in as app/controllers/chat_controller.rb
+# and add the route shown at the bottom of this file to config/routes.rb.
+#
+# Run (Rails 8.x):
+#   bundle install
+#   OPENAI_API_KEY=sk-... bin/rails server -p ${PORT}
+#
+# The frontend expects OpenAI-compatible SSE streaming at POST /api/chat.
+#
+# -------------------------------------------------------------------------
+# Gemfile additions (Rails 8.1.x ships everything else you need):
+# -------------------------------------------------------------------------
+#   gem "rails", "~> 8.1"
+#   # Net::HTTP is in the standard library — no extra HTTP-client gem required.
+#   # Optional: load OPENAI_API_KEY etc. from a .env file in development.
+#   gem "dotenv-rails", groups: [:development, :test]
+#
+# Then: bundle install
+# -------------------------------------------------------------------------
+#
+# IMPORTANT — server requirements:
+#   ActionController::Live runs each streaming action in its OWN thread and
+#   needs a concurrent, evented/threaded app server. Puma (the Rails default)
+#   works. WEBrick does NOT stream. Run with Puma.
+# -------------------------------------------------------------------------
+
+require "net/http"
+require "json"
+require "uri"
+
+class ChatController < ApplicationController
+  include ActionController::Live
+
+  # The browser preflights the credentialed cross-origin POST. Answer OPTIONS
+  # before any auth/CSRF filters run.
+  skip_forgery_protection
+  before_action :set_cors_headers
+  before_action :handle_preflight, only: :create
+
+  OPENAI_BASE_URL = ENV.fetch("OPENAI_BASE_URL", "https://api.openai.com/v1").freeze
+  OPENAI_MODEL    = ENV.fetch("OPENAI_MODEL", "${MODEL}").freeze
+
+  # Loaded once at boot (see ApplicationController / initializer note below).
+  SYSTEM_PROMPT = Rails.root.join("config", "system-prompt.txt").read.freeze
+
+  # POST /api/chat  { "messages": [{ "role": "...", "content": "..." }] }
+  def create
+    api_key = ENV["OPENAI_API_KEY"]
+    if api_key.nil? || api_key.empty?
+      render(json: { error: "OPENAI_API_KEY not set" }, status: :internal_server_error)
+      return
+    end
+
+    body = JSON.parse(request.body.read) rescue {}
+    incoming = body["messages"]
+    unless incoming.is_a?(Array) && !incoming.empty?
+      render(json: { error: "messages must be a non-empty array" }, status: :bad_request)
+      return
+    end
+
+    # Prepend the server-side system prompt; never trust a client-sent one.
+    messages = [{ "role" => "system", "content" => SYSTEM_PROMPT }]
+    incoming.each do |m|
+      next unless m.is_a?(Hash)
+      messages << { "role" => m["role"].to_s, "content" => m["content"].to_s }
+    end
+
+    # Headers MUST be set before the first write (the response commits on write).
+    response.headers["Content-Type"]  = "text/event-stream"
+    response.headers["Cache-Control"] = "no-cache"
+    # Rails inserts Rack::ETag, which buffers the whole body and breaks
+    # streaming. Setting Last-Modified makes Rack::ETag pass the body through.
+    response.headers["Last-Modified"] = Time.now.httpdate
+    # Defeat proxy buffering (nginx) so chunks reach the browser immediately.
+    response.headers["X-Accel-Buffering"] = "no"
+
+    uri = URI.parse("#{OPENAI_BASE_URL}/chat/completions")
+    payload = JSON.generate(
+      model: OPENAI_MODEL,
+      stream: true,
+      messages: messages,
+    )
+
+    # read_timeout: nil disables the default 60s per-read timeout. A streaming
+    # completion can pause longer than 60s between chunks (slow first token,
+    # long or reasoning-heavy generations); the default would raise
+    # Net::ReadTimeout and cut the response off mid-stream.
+    Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", read_timeout: nil) do |http|
+      upstream = Net::HTTP::Post.new(uri)
+      upstream["Content-Type"]  = "application/json"
+      upstream["Authorization"] = "Bearer #{api_key}"
+      upstream["Accept"]        = "text/event-stream"
+      upstream.body = payload
+
+      http.request(upstream) do |res|
+        unless res.code.to_i == 200
+          # Drain the upstream error body and surface it as one SSE error frame.
+          err = +""
+          res.read_body { |c| err << c }
+          response.stream.write("data: #{JSON.generate(error: "OpenAI returned #{res.code}: #{err}")}\n\n")
+          response.stream.write("data: [DONE]\n\n")
+          next
+        end
+
+        # Forward OpenAI's native SSE bytes verbatim. The upstream already emits
+        # `data: {chunk}\n\n` frames terminated by `data: [DONE]`, so we just
+        # write each chunk through and flush — no buffering, no reframing. This
+        # avoids splitting a frame that straddles a TCP read boundary, because
+        # the browser's EventSource/adapter reassembles frames itself.
+        res.read_body do |chunk|
+          response.stream.write(chunk)
+        end
+      end
+    end
+  rescue IOError, Errno::EPIPE
+    # Client disconnected mid-stream — nothing more to send.
+  rescue => e
+    Rails.logger.error("[chat] stream error: #{e.class}: #{e.message}")
+    begin
+      response.stream.write("data: #{JSON.generate(error: e.message)}\n\n")
+      response.stream.write("data: [DONE]\n\n")
+    rescue IOError, Errno::EPIPE
+      # client already gone
+    end
+  ensure
+    # ALWAYS close, or the socket leaks for the lifetime of the worker.
+    response.stream.close
+  end
+
+  private
+
+  # Lock CORS to the single configured frontend origin (NOT "*"): the request
+  # is credentialed-capable and a wildcard would let any site spend your key.
+  def set_cors_headers
+    response.headers["Access-Control-Allow-Origin"]  = ENV.fetch("FRONTEND_ORIGIN", "${FRONTEND_ORIGIN}")
+    response.headers["Vary"]                         = "Origin"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+  end
+
+  def handle_preflight
+    head(:no_content) if request.method == "OPTIONS"
+  end
+end
+
+# ---------------------------------------------------------------------------
+# config/routes.rb
+# ---------------------------------------------------------------------------
+# Rails.application.routes.draw do
+#   post "/api/chat", to: "chat#create"
+#   match "/api/chat", to: "chat#create", via: :options  # CORS preflight
+# end
+# ---------------------------------------------------------------------------
+#
+# Notes:
+#   * SYSTEM_PROMPT reads config/system-prompt.txt once at class load (boot).
+#     Generate it with:
+#       npx @openuidev/cli generate ./src/lib/library.ts --out config/system-prompt.txt
+#   * Run on Puma (the Rails default). ActionController::Live needs a threaded
+#     server; do not use WEBrick.
+#   * Minimal Sinatra alternative (no Rails): in a `post "/api/chat"` route set
+#     `content_type "text/event-stream"` and return a `stream(:keep_open) do |out|`
+#     block, forwarding the same Net::HTTP `read_body` chunks via `out << chunk`.
+# ---------------------------------------------------------------------------

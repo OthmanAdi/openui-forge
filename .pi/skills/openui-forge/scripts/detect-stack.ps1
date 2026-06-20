@@ -180,7 +180,11 @@ if ($openaiHits) {
 
 function To-JsonValue($val) {
     if ($null -eq $val) { return "null" }
-    if ($val -is [bool]) { return if ($val) { "true" } else { "false" } }
+    # NB: `return if (...) {...}` is not valid here — it silently fails under
+    # SilentlyContinue and falls through to the string branch, emitting "False".
+    if ($val -is [bool]) {
+        if ($val) { return "true" } else { return "false" }
+    }
     return "`"$($val -replace '\\', '\\\\' -replace '"', '\"')`""
 }
 

@@ -44,23 +44,23 @@ else
     fi
 fi
 
-# ── Check 2: React version >= 19 ────────────────────────────────────────────
+# ── Check 2: React version >= 18.3.1 (peer floor; 19+ recommended) ──────────
 
 react_ver=""
 if [[ -f "node_modules/react/package.json" ]]; then
-    react_ver=$(grep -oP '"version"\s*:\s*"\K[^"]+' node_modules/react/package.json 2>/dev/null || true)
+    react_ver=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' node_modules/react/package.json 2>/dev/null | head -n1 | sed -E 's/.*"([^"]+)"$/\1/' || true)
 elif [[ -f "package.json" ]]; then
-    react_ver=$(grep -oP '"react"\s*:\s*"[\^~]?\K[0-9][^"]*' package.json 2>/dev/null || true)
+    react_ver=$(grep -oE '"react"[[:space:]]*:[[:space:]]*"[~^]?[0-9][^"]*"' package.json 2>/dev/null | head -n1 | sed -E 's/.*"([~^]?[0-9][^"]*)"$/\1/; s/^[~^]//' || true)
 fi
 
 if [[ -z "$react_ver" ]]; then
     fail "React version: not found"
 else
-    major=$(echo "$react_ver" | cut -d. -f1)
-    if [[ "$major" -ge 19 ]] 2>/dev/null; then
-        pass "React version: $react_ver (>= 19)"
+    # Peer range is ^18.3.1 || ^19.0.0 — accept >= 18.3.1 (19+ recommended).
+    if [[ "$(printf '%s\n18.3.1\n' "$react_ver" | sort -V | head -n1)" == "18.3.1" ]]; then
+        pass "React version: $react_ver (>= 18.3.1; 19+ recommended)"
     else
-        fail "React version: found $react_ver, need >= 19.0.0"
+        fail "React version: found $react_ver, need >= 18.3.1 (19+ recommended)"
     fi
 fi
 

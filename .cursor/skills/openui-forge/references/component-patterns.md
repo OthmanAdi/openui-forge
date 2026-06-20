@@ -1179,6 +1179,7 @@ export const myLibrary = createLibrary({
 - Keep the total component count under 30. More components means a larger system prompt, which means more tokens and worse LLM selection accuracy.
 - The `description` on both the library and each group helps the LLM understand when to use each category.
 - The library object exposes `.prompt()` for runtime system prompt generation and is passed to the renderer/ChatProvider as `componentLibrary`.
+- `PromptOptions` (the `.prompt()` argument) also accepts a `toolExamples?: string[]` field alongside `examples`. When tools are present, `toolExamples` are shown (taking priority over `examples`) so you can supply Query/Mutation-flavored samples distinct from the static layout examples.
 
 **Generating the system prompt from the library:**
 
@@ -1196,3 +1197,5 @@ const systemPrompt = myLibrary.prompt({
   ],
 });
 ```
+
+For lower-level use, `@openuidev/react-lang` also re-exports a standalone `generatePrompt(spec: PromptSpec): string` (from `@openuidev/lang-core`). `library.toSpec()` returns the `PromptSpec`, so `myLibrary.prompt(opts)` is equivalent to calling `generatePrompt` on the library's spec — reach for `generatePrompt` only when you build a `PromptSpec` by hand instead of via `createLibrary`.

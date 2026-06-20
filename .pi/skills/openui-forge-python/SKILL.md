@@ -1,7 +1,7 @@
 ---
 name: openui-forge-python
 description: OpenUI generative UI with Python FastAPI backend. OpenAI and Anthropic SDK variants.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -16,7 +16,7 @@ Build generative UI apps with a React frontend + Python FastAPI backend. Streams
 
 ## Prerequisites
 
-- Node.js >= 18 + React >= 18.3.1 (19+ recommended) (frontend)
+- Node.js >= 22 (24 LTS recommended) + React >= 18.3.1 (19+ recommended) (frontend)
 - Python >= 3.10 (backend)
 - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set
 
@@ -38,12 +38,14 @@ npx @openuidev/cli generate ./src/lib/library.ts --out backend/system-prompt.txt
 ### Backend: `backend/requirements.txt`
 
 ```
-fastapi>=0.104.0
+fastapi>=0.115.0
 uvicorn>=0.24.0
-openai>=1.6.0
-anthropic>=0.40.0
+openai>=2.0
+anthropic>=0.111.0
 python-dotenv>=1.0.0
 ```
+
+> The Python >= 3.10 floor comes from fastapi/uvicorn/python-dotenv; openai and anthropic themselves need only Python 3.9.
 
 ### Backend (OpenAI): `backend/main.py`
 

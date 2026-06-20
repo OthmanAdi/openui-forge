@@ -1,7 +1,7 @@
 ---
 name: openui-forge-langchain
 description: OpenUI generative UI with LangChain/LangGraph backend. Supports ChatOpenAI and ChatAnthropic.
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -16,7 +16,7 @@ Build generative UI apps with OpenUI + LangChain. Stream from ChatOpenAI or Chat
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 18.3.1 (19+ recommended)
+- Node.js >= 22 (24 LTS recommended), React >= 18.3.1 (19+ recommended)
 - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set
 - Next.js project (App Router recommended)
 

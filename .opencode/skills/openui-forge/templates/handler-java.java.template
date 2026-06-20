@@ -1,0 +1,195 @@
+// OpenUI backend handler — Java / Spring Boot (WebFlux)
+//
+// Build and run:
+//   mvn spring-boot:run
+//   # or: mvn clean package && java -jar target/openui-backend-0.0.1-SNAPSHOT.jar
+//
+// The frontend expects OpenAI-compatible SSE streaming at POST /api/chat:
+//   Content-Type: text/event-stream, lines "data: {json}\n\n", terminated by "data: [DONE]".
+// Pair it with streamProtocol={openAIAdapter()} on the React side.
+//
+// -------------------------------------------------------------------------
+// Maven (pom.xml) — key bits:
+// -------------------------------------------------------------------------
+//   <parent>
+//     <groupId>org.springframework.boot</groupId>
+//     <artifactId>spring-boot-starter-parent</artifactId>
+//     <version>4.0.6</version>                 <!-- current stable (4.x); 4.1.x is the latest line -->
+//     <relativePath/>
+//   </parent>
+//   <properties>
+//     <java.version>21</java.version>          <!-- Boot 4.x needs Java 17+; 21 LTS recommended -->
+//   </properties>
+//   <dependencies>
+//     <dependency>
+//       <groupId>org.springframework.boot</groupId>
+//       <artifactId>spring-boot-starter-webflux</artifactId>  <!-- brings WebFlux + WebClient + Reactor Netty -->
+//     </dependency>
+//   </dependencies>
+//
+// -------------------------------------------------------------------------
+// Gradle (build.gradle) equivalent:
+// -------------------------------------------------------------------------
+//   plugins {
+//     id 'org.springframework.boot' version '4.0.6'
+//     id 'io.spring.dependency-management' version '1.1.7'
+//     id 'java'
+//   }
+//   java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+//   dependencies {
+//     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+//   }
+//
+// -------------------------------------------------------------------------
+// Environment variables:
+//   OPENAI_API_KEY    (required)  your provider key
+//   OPENAI_BASE_URL   (optional)  default https://api.openai.com/v1 — set this for
+//                                 OpenAI-compatible providers (Azure, Groq, Together, Ollama, ...)
+//   OPENAI_MODEL      (optional)  default gpt-5.5
+//   FRONTEND_ORIGIN   (optional)  default http://localhost:3000 (CORS allow-origin; NOT a wildcard)
+//   SERVER_PORT       (optional)  default ${PORT} — Spring reads server.port
+//
+// Place the generated system prompt at: src/main/resources/system-prompt.txt
+//   npx @openuidev/cli generate ./src/lib/library.ts --out backend/src/main/resources/system-prompt.txt
+// -------------------------------------------------------------------------
+
+package ${PACKAGE_NAME};
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.config.CorsRegistry;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import reactor.core.publisher.Flux;
+
+@SpringBootApplication
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+
+    // ------------------------------------------------------------------
+    // CORS — lock the allowed origin to the configured frontend. Do NOT use
+    // a wildcard "*": this endpoint is callable from the browser and a
+    // wildcard would let any site drive (and bill) your provider key.
+    // ------------------------------------------------------------------
+    @Bean
+    public WebFluxConfigurer corsConfigurer(
+            @Value("${FRONTEND_ORIGIN:http://localhost:3000}") String frontendOrigin) {
+        return new WebFluxConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                        .allowedOrigins(frontendOrigin)
+                        .allowedMethods("POST", "OPTIONS")
+                        .allowedHeaders("Content-Type")
+                        .allowCredentials(true);
+            }
+        };
+    }
+
+    // A single shared, non-blocking WebClient (Reactor Netty under the hood).
+    @Bean
+    public WebClient openAiWebClient(
+            WebClient.Builder builder,
+            @Value("${OPENAI_BASE_URL:https://api.openai.com/v1}") String baseUrl) {
+        return builder.baseUrl(baseUrl).build();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DTOs — only the fields we send/receive. The request body is
+// { "messages": [ { "role": "...", "content": "..." } ] }.
+// Java records keep this compact and immutable.
+// ---------------------------------------------------------------------------
+
+record ChatMessage(String role, String content) {}
+
+record ChatRequest(List<ChatMessage> messages) {}
+
+// ---------------------------------------------------------------------------
+// Chat controller
+// ---------------------------------------------------------------------------
+
+@RestController
+class ChatController {
+
+    private final WebClient openAiWebClient;
+    private final String apiKey;
+    private final String model;
+    private final String systemPrompt;
+
+    ChatController(
+            WebClient openAiWebClient,
+            @Value("${OPENAI_API_KEY:}") String apiKey,
+            @Value("${OPENAI_MODEL:gpt-5.5}") String model,
+            // Loaded ONCE at startup from the classpath (src/main/resources/system-prompt.txt).
+            @Value("classpath:system-prompt.txt") Resource systemPromptResource) {
+        this.openAiWebClient = openAiWebClient;
+        this.apiKey = apiKey;
+        this.model = model;
+        try {
+            this.systemPrompt = systemPromptResource.getContentAsString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                    "Failed to read system-prompt.txt from classpath. "
+                    + "Generate it with: npx @openuidev/cli generate ./src/lib/library.ts "
+                    + "--out src/main/resources/system-prompt.txt", e);
+        }
+    }
+
+    // produces = text/event-stream + Flux<String>: Spring's SSE writer wraps EACH
+    // emitted String as "data: <element>\n\n" automatically. So we emit BARE JSON
+    // payloads (the upstream "data:" prefix already stripped) and let Spring re-frame
+    // them. The result on the wire is exactly "data: {chunk}\n\n" ... "data: [DONE]\n\n".
+    @PostMapping(value = "/api/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    Flux<String> chat(@RequestBody ChatRequest request) {
+        if (apiKey == null || apiKey.isBlank()) {
+            // Surfaced to the client as a single SSE error event, then closed.
+            return Flux.just("{\"error\":\"OPENAI_API_KEY not set\"}");
+        }
+
+        // Prepend the system prompt; never trust a system message from the client.
+        List<ChatMessage> messages = new ArrayList<>();
+        messages.add(new ChatMessage("system", systemPrompt));
+        if (request.messages() != null) {
+            messages.addAll(request.messages());
+        }
+
+        Map<String, Object> upstreamBody = Map.of(
+                "model", model,
+                "stream", true,
+                "messages", messages);
+
+        // Forward OpenAI's native SSE stream. Reading with bodyToFlux(String.class)
+        // makes Spring's ServerSentEventHttpMessageReader parse the upstream
+        // "data:" events and hand us each event's bare data payload (correctly
+        // buffered across TCP chunk boundaries). We emit those payloads straight
+        // through; the controller's SSE writer re-adds the "data:" framing.
+        return openAiWebClient.post()
+                .uri("/chat/completions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(upstreamBody)
+                .retrieve()
+                .bodyToFlux(String.class);
+    }
+}

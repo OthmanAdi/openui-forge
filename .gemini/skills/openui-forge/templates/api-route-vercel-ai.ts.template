@@ -4,7 +4,7 @@
 // The Vercel AI SDK handles streaming, format conversion, and response
 // construction in a single call. This is the simplest backend option.
 
-import { streamText } from "ai";
+import { streamText, convertToModelMessages } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 // To use Anthropic instead:
 // import { createAnthropic } from "@ai-sdk/anthropic";
@@ -36,17 +36,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // In AI SDK v6, convertToModelMessages is async — it maps the rich
+    // UIMessage[] from the client to the ModelMessage[] streamText expects.
+    const modelMessages = await convertToModelMessages(messages);
+
     const result = streamText({
       model: openai("${MODEL}"),
       // Anthropic alternative:
-      // model: anthropic("${MODEL}"),
+      // model: anthropic("claude-sonnet-4-6"),
       system: systemPrompt,
-      messages,
+      messages: modelMessages,
     });
 
     // toUIMessageStreamResponse() returns a Response with the correct
-    // Content-Type and streaming body. It is the newer API (v4+).
-    // For older versions of the Vercel AI SDK, use toAIStreamResponse().
+    // Content-Type and streaming body. This is the AI SDK v6 API; it
+    // replaced toDataStreamResponse() from earlier versions.
     return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("[chat] Vercel AI SDK error:", error);

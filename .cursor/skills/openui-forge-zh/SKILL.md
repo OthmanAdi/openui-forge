@@ -1,7 +1,7 @@
 ---
 name: openui-forge-zh
 description: 使用 OpenUI 构建生成式 UI 应用 — 支持任意 LLM 提供商、任意后端语言。脚手架、集成、验证。
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -41,14 +41,19 @@ OpenUI 是「生成式 UI 的开放标准」(Open Standard for Generative UI)：
 
 | 包名 | 用途 |
 |------|------|
-| `@openuidev/react-lang` | 核心：defineComponent、createLibrary、Renderer、提示词生成 |
+| `@openuidev/lang-core` | 框架无关基础层：解析器、校验、提示词生成（所有绑定都构建于其上） |
+| `@openuidev/react-lang` | React 绑定（基于 lang-core）：defineComponent、createLibrary、Renderer |
 | `@openuidev/react-headless` | 状态管理：ChatProvider、流式适配器、消息格式（基于 Zustand） |
 | `@openuidev/react-ui` | UI 层：FullScreen / Copilot / BottomTray 布局、30+ 内置组件、主题定制 |
+| `@openuidev/vue-lang` | Vue 3 绑定（基于 lang-core，peer `vue>=3.5.0`） |
+| `@openuidev/svelte-lang` | Svelte 5 绑定（基于 lang-core，peer `svelte>=5.0.0`） |
 | `@openuidev/cli` | 命令行工具：项目脚手架、系统提示词生成 |
+
+OpenUI 还提供 Vue 3 与 Svelte 5 运行时（同样基于 `lang-core`；React 绑定最完整）。
 
 ## 前置要求
 
-- Node.js >= 18
+- Node.js >= 22（推荐 24 LTS）
 - React >= 18.3.1（@openuidev 包的 peer 范围为 `^18.3.1 || ^19.0.0`，推荐 19+）
 - 至少配置一个 LLM 提供商（OpenAI、Anthropic 或其他）
 - 非 JS 后端需通过 `npx @openuidev/cli` 预生成系统提示词为 .txt 文件
@@ -221,6 +226,7 @@ Rust (Axum)
 1. 安装缺失的依赖
 2. 读取对应技术栈的模板文件
 3. 适配模板：替换 ${VARIABLES}、调整路径、设置模型名称
+   - OpenAI 默认 `gpt-5.5`（通过 `OPENAI_MODEL` 覆盖）；Anthropic 默认 `claude-sonnet-4-6`（通过 `ANTHROPIC_MODEL` 覆盖，备选：`claude-opus-4-8` / `claude-haiku-4-5` / `claude-fable-5`）
 4. 创建后端路由/处理器
 5. 创建或更新前端页面，配置正确的适配器 (Adapter) 和消息格式 (Format)
 6. 使用 `templates/page-fullscreen.tsx.template` 作为前端页面模板
@@ -239,6 +245,33 @@ Rust (Axum)
 
 **适配器内部机制请参考 `references/adapter-matrix.md`。**
 **Python/Go/Rust 完整示例请参考 `references/backend-patterns.md`。**
+
+---
+
+## 提供商路由 (OPENAI_BASE_URL)
+
+OpenAI 客户端会读取 `OPENAI_BASE_URL` 环境变量，因此同一套代码即可路由到任意「OpenAI 兼容」的端点。只需在 `.env` 中加入 `OPENAI_BASE_URL=https://...`（再按需设置 `OPENAI_MODEL`），现有的 OpenAI SDK 调用就会改为请求该端点，无需改动代码。注意：`OPENAI_BASE_URL` 是当前唯一正确的变量名（旧的 `OPENAI_API_BASE` 已在 openai v6/v2 中移除）。
+
+| 提供商 | OPENAI_BASE_URL | 示例模型 ID |
+|--------|-----------------|-------------|
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-pro` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-latest` |
+| xAI (Grok) | `https://api.x.ai/v1` | `grok-4` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash` |
+| Groq | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-large-latest` |
+| Together | `https://api.together.ai/v1` | `meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8` |
+| Fireworks | `https://api.fireworks.ai/inference/v1` | `accounts/fireworks/models/deepseek-v3p1-terminus` |
+| Ollama (本地) | `http://localhost:11434/v1/` | `llama3.3`（API key 填任意占位值） |
+| LM Studio (本地) | `http://localhost:1234/v1` | 已加载的模型名（API key 填任意占位值） |
+
+**注意：** 上述 base-url 路由仅覆盖 chat-completions 接口，并非与 OpenAI 完整 API 对齐；各提供商的模型目录与可用 ID 会随时更新，请以其官方文档为准。
+
+**Azure OpenAI 特例（不是通用直接替换）：**
+
+- `OPENAI_BASE_URL=https://YOUR-RESOURCE.openai.azure.com/openai/v1/`
+- `OPENAI_MODEL` 必须填**部署名 (deployment name)**，而非模型目录 ID
+- 旧版（legacy）路径需要附加 `?api-version=` 查询参数，并改用 `AzureOpenAI` 客户端（v1 GA 端点已不再要求 `api-version`，可直接用标准 `OpenAI` 客户端）
 
 ### /openui:prompt
 

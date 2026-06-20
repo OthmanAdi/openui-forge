@@ -29,16 +29,16 @@ const systemPrompt = readFileSync(
 // ---------------------------------------------------------------------------
 
 const model = new ChatOpenAI({
-  modelName: "${MODEL}",
+  model: "${MODEL}",
   streaming: true,
-  openAIApiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // Anthropic alternative:
 // const model = new ChatAnthropic({
-//   modelName: "${MODEL}",
+//   model: "${MODEL}",
 //   streaming: true,
-//   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+//   apiKey: process.env.ANTHROPIC_API_KEY,
 // });
 
 // ---------------------------------------------------------------------------

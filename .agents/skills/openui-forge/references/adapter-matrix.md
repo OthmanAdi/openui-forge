@@ -123,12 +123,12 @@ import { openAIResponsesAdapter } from "@openuidev/react-headless";
 
 Each line is a complete JSON object. No `data:` prefix. No blank lines required between entries.
 
-**When to use:** This is THE MOST COMMON adapter for custom backends. Use it when:
-- Your backend calls the OpenAI SDK and uses `response.toReadableStream()` to pipe NDJSON
-- Your backend is in Python, Go, Rust, or any non-JS language that constructs OpenAI-compatible NDJSON
-- You want the simplest possible streaming format from your backend
+**When to use:** Use this when your backend emits raw NDJSON (one JSON object per line, no `data:` prefix). Common cases:
+- Your backend calls the OpenAI Node SDK and pipes `response.toReadableStream()` (which emits NDJSON)
+- Your backend constructs OpenAI-compatible NDJSON by hand (see `backend-patterns.md`)
+- You want the simplest possible body and have matched the frontend adapter to it
 
-This is the universal adapter for non-JavaScript backends. Every backend template in this skill uses this adapter.
+Note: the bundled non-JS handler templates (Python, Go, Rust, C#, Java, Ruby, PHP, Elixir) emit SSE and pair with `openAIAdapter()` (see the Decision Matrix below). NDJSON via this adapter is the alternative shown in `backend-patterns.md`.
 
 **Usage:**
 ```tsx
@@ -354,6 +354,8 @@ Use this table to select the correct adapter and message format for your backend
 - Response body is SSE (`data: {json}\n\n` lines, optional `data: [DONE]`)? Use `openAIAdapter()`.
 - Response body is raw NDJSON (one JSON object per line, no `data:` prefix)? Use `openAIReadableStreamAdapter()`.
 - Using the OpenAI Node.js SDK's `response.toReadableStream()`? That produces NDJSON, so use `openAIReadableStreamAdapter()`.
+
+> **Bundled templates emit SSE; `backend-patterns.md` shows the NDJSON variant.** The non-JS handler templates in this skill (`templates/handler-python.py.template`, `handler-go.go.template`, `handler-rust.rs.template`) all stream OpenAI-compatible SSE (`Content-Type: text/event-stream`, `data: {json}\n\n`, terminated by `data: [DONE]`), so they pair with `openAIAdapter()` exactly as the Python/Go/Rust rows above show. The equivalent backends in `references/backend-patterns.md` emit NDJSON instead (one JSON object per line, no `data:` prefix) and therefore pair with `openAIReadableStreamAdapter()`. Both are valid — keep the frontend adapter matched to whatever body your backend actually sends.
 
 ---
 

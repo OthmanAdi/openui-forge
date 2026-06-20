@@ -1,7 +1,7 @@
 ---
 name: openui-forge-openai
 description: OpenUI generative UI with OpenAI SDK backend. Streaming chat completions with gpt-5.5 (or any current OpenAI-compatible model).
-version: 1.0.0
+version: 1.2.0
 author: OthmanAdi
 ---
 
@@ -16,11 +16,32 @@ Build generative UI apps with OpenUI + OpenAI SDK. One backend, one adapter, str
 
 ## Prerequisites
 
-- Node.js >= 18, React >= 18.3.1 (19+ recommended)
+- Node.js >= 22 (24 LTS recommended), React >= 18.3.1 (19+ recommended)
 - `OPENAI_API_KEY` environment variable set
-- Optional: `OPENAI_BASE_URL` to route via an OpenAI-compatible provider (Gemini, OpenRouter, xAI, DeepSeek, etc.) without code changes
+- Optional: `OPENAI_BASE_URL` to route via an OpenAI-compatible provider (Gemini, OpenRouter, xAI, DeepSeek, etc.) without code changes. `OPENAI_BASE_URL` is the correct env var; the legacy `OPENAI_API_BASE` was removed in openai v6. See [Provider Routing](#provider-routing) below.
 - Optional: `OPENAI_MODEL` to pin a specific model (defaults to `gpt-5.5`)
 - Next.js project (App Router recommended)
+
+## Provider Routing
+
+This is the OpenAI-compatible variant: the same `OpenAI` client and `chat.completions.create` code talks to any provider below by setting `OPENAI_BASE_URL` (and `OPENAI_MODEL`). No code changes. `OPENAI_BASE_URL` is the correct env var; the old `OPENAI_API_BASE` was removed in openai v6.
+
+| Provider | `OPENAI_BASE_URL` | Example `OPENAI_MODEL` |
+|----------|-------------------|------------------------|
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.5-flash` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `anthropic/claude-opus-4.7` |
+| xAI (Grok) | `https://api.x.ai/v1` | `grok-4.3` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-pro` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-large-latest` |
+| Together | `https://api.together.ai/v1` | `openai/gpt-oss-20b` |
+| Fireworks | `https://api.fireworks.ai/inference/v1` | `accounts/fireworks/models/glm-5` |
+| Ollama (local) | `http://localhost:11434/v1/` | `llama3.3` (any placeholder API key) |
+| LM Studio (local) | `http://localhost:1234/v1` | loaded model id (any placeholder API key) |
+
+Model ids drift; check each provider's current catalog. Base-url routing covers chat completions only, not full OpenAI API parity.
+
+> **Azure OpenAI is not a generic drop-in.** Use `OPENAI_BASE_URL=https://YOUR-RESOURCE.openai.azure.com/openai/v1/`, set `OPENAI_MODEL` to your *deployment name* (not a catalog id like `gpt-5.5`), and prefer the `AzureOpenAI` client. The legacy data-plane path also needs an `?api-version=` query param.
 
 ## Quick Start
 

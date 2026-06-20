@@ -38,11 +38,12 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    // response.toReadableStream() returns a ReadableStream of raw SSE bytes
-    // that the openAIReadableStreamAdapter on the client can parse directly.
+    // response.toReadableStream() produces NDJSON (one JSON object per line,
+    // no `data:` prefix), consumed by openAIReadableStreamAdapter() on the
+    // client. This is NDJSON, not SSE.
     return new Response(response.toReadableStream(), {
       headers: {
-        "Content-Type": "text/event-stream",
+        "Content-Type": "application/x-ndjson",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },
