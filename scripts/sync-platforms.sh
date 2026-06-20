@@ -35,6 +35,11 @@ VARIANTS=(
   openui-forge-rust
   openui-forge-vercel
   openui-forge-zh
+  openui-forge-csharp
+  openui-forge-java
+  openui-forge-ruby
+  openui-forge-php
+  openui-forge-elixir
 )
 
 echo "=== OpenUI Forge: Syncing skills to all agent platforms ==="

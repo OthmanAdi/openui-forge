@@ -1,0 +1,201 @@
+# OpenUI backend handler — Elixir / Phoenix (Plug.Conn chunked SSE)
+#
+# The frontend expects OpenAI-compatible SSE streaming at POST /api/chat
+# (`data: {json}\n\n` lines terminated by `data: [DONE]`). Pair with
+# `streamProtocol={openAIAdapter()}` on the React side.
+#
+# This controller proxies OpenAI's native SSE stream verbatim: Req delivers
+# upstream body chunks to the `:into` collector function, and each chunk is
+# flushed to the client with Plug.Conn.chunk/2 (no buffering of the full body).
+#
+# ---------------------------------------------------------------------------
+# Run instructions
+# ---------------------------------------------------------------------------
+#   1. Generate the system prompt next to your app (priv/ keeps it out of the
+#      web root and ships it inside releases):
+#        npx @openuidev/cli generate ./src/lib/library.ts \
+#          --out backend/priv/system-prompt.txt
+#   2. export OPENAI_API_KEY=sk-...            # required
+#      export FRONTEND_ORIGIN=http://localhost:3000   # optional override
+#   3. mix deps.get && mix phx.server          # serves on :4000
+#
+# ---------------------------------------------------------------------------
+# Dependency manifest — add to mix.exs deps/0
+# ---------------------------------------------------------------------------
+#   defp deps do
+#     [
+#       {:phoenix, "~> 1.8.0"},
+#       {:bandit, "~> 1.0"},          # HTTP server (Phoenix 1.8 default)
+#       {:jason, "~> 1.4"},           # JSON encode/decode
+#       {:req, "~> 0.6"}              # HTTP client with streaming :into
+#     ]
+#   end
+#
+# Requires Elixir ~> 1.15 and Erlang/OTP 25+ (Phoenix 1.8 baseline).
+#
+# Long-lived streams: Bandit imposes no short idle cap, but if you run the
+# legacy Cowboy adapter set `protocol_options: [idle_timeout: :infinity]` in
+# your endpoint config so the connection is not closed mid-stream.
+# ---------------------------------------------------------------------------
+
+defmodule OpenuiBackendWeb.ChatController do
+  @moduledoc """
+  Streams OpenAI Chat Completions to the OpenUI React frontend as SSE.
+
+  POST /api/chat with `{"messages": [{"role": ..., "content": ...}]}`.
+  The generated system prompt is prepended as a system message.
+  """
+  use OpenuiBackendWeb, :controller
+
+  require Logger
+
+  @openai_chat_path "/chat/completions"
+
+  # POST /api/chat
+  def create(conn, %{"messages" => messages}) when is_list(messages) do
+    api_key = System.get_env("OPENAI_API_KEY")
+
+    cond do
+      is_nil(api_key) or api_key == "" ->
+        send_error(conn, 500, "OPENAI_API_KEY not set")
+
+      true ->
+        stream_chat(conn, messages, api_key)
+    end
+  end
+
+  def create(conn, _params) do
+    send_error(conn, 400, "messages must be a non-empty array")
+  end
+
+  defp stream_chat(conn, messages, api_key) do
+    base_url = System.get_env("OPENAI_BASE_URL") || "https://api.openai.com/v1"
+    model = System.get_env("OPENAI_MODEL") || "gpt-5.5"
+
+    # Prepend the server-side system prompt; never trust the client to send it.
+    system_message = %{"role" => "system", "content" => OpenuiBackend.system_prompt()}
+    payload = %{"model" => model, "stream" => true, "messages" => [system_message | messages]}
+
+    # Open the SSE response before the upstream call so the first byte flushes
+    # to the browser as soon as OpenAI starts emitting tokens.
+    conn =
+      conn
+      |> put_resp_content_type("text/event-stream")
+      |> put_resp_header("cache-control", "no-cache")
+      |> put_resp_header("x-accel-buffering", "no")
+      |> send_chunked(200)
+
+    # Plug.Conn is immutable, so chunk/2 returns a NEW conn each call. The
+    # `:into` accumulator is {req, resp}; we stash the latest conn under
+    # resp.private and thread it forward across chunks. Seed it here.
+    result =
+      Req.post(
+        url: base_url <> @openai_chat_path,
+        json: payload,
+        auth: {:bearer, api_key},
+        receive_timeout: :infinity,
+        # `:into` turns the response body into a stream: Req hands each upstream
+        # SSE chunk to this 2-arity collector as {:data, data}. We forward it
+        # verbatim with chunk/2 and halt the moment the client disconnects,
+        # mirroring the Enum.reduce_while halt-on-{:error,_} pattern.
+        into: fn {:data, data}, {req, resp} ->
+          out_conn = resp.private[:openui_conn] || conn
+
+          case Plug.Conn.chunk(out_conn, data) do
+            {:ok, out_conn} ->
+              {:cont, {req, Req.Response.put_private(resp, :openui_conn, out_conn)}}
+
+            {:error, reason} ->
+              Logger.debug("client disconnected mid-stream: #{inspect(reason)}")
+              {:halt, {req, resp}}
+          end
+        end
+      )
+
+    case result do
+      {:ok, %Req.Response{status: status} = resp} when status in 200..299 ->
+        # OpenAI already sends a terminating `data: [DONE]` line, which we
+        # forwarded verbatim. Return the conn threaded through the collector
+        # (falling back to the original conn if no chunks ever arrived).
+        resp.private[:openui_conn] || conn
+
+      {:ok, %Req.Response{status: status}} ->
+        # Headers are already sent (chunked), so we cannot change the status.
+        # Surface the upstream failure as an SSE error frame, then close.
+        Logger.error("OpenAI returned HTTP #{status}")
+        push_error_frame(conn, "OpenAI returned HTTP #{status}")
+
+      {:error, exception} ->
+        Logger.error("OpenAI request failed: #{Exception.message(exception)}")
+        push_error_frame(conn, "OpenAI request unreachable")
+    end
+  end
+
+  # Best-effort SSE error frame once the stream is already open.
+  defp push_error_frame(conn, message) do
+    payload = Jason.encode!(%{error: message})
+    _ = Plug.Conn.chunk(conn, "data: #{payload}\n\ndata: [DONE]\n\n")
+    conn
+  end
+
+  # JSON error for failures detected before the stream opens.
+  defp send_error(conn, status, message) do
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(status, Jason.encode!(%{error: message}))
+  end
+end
+
+# ---------------------------------------------------------------------------
+# Application boot — load the system prompt once at startup
+# ---------------------------------------------------------------------------
+#
+# Read priv/system-prompt.txt a single time and cache it in :persistent_term
+# so every request reuses the same copy. Call OpenuiBackend.load_system_prompt!/0
+# from your Application.start/2 callback BEFORE the endpoint starts.
+
+defmodule OpenuiBackend do
+  @moduledoc "System-prompt loading for the OpenUI backend."
+
+  @key {__MODULE__, :system_prompt}
+
+  @doc "Reads priv/system-prompt.txt once and caches it. Call at app start."
+  def load_system_prompt! do
+    path = Application.app_dir(:openui_backend, "priv/system-prompt.txt")
+
+    case File.read(path) do
+      {:ok, contents} ->
+        :persistent_term.put(@key, contents)
+        :ok
+
+      {:error, reason} ->
+        raise "failed to read #{path}: #{:file.format_error(reason)}"
+    end
+  end
+
+  @doc "Returns the cached system prompt."
+  def system_prompt, do: :persistent_term.get(@key)
+end
+
+# ---------------------------------------------------------------------------
+# Router — add this scope to lib/openui_backend_web/router.ex
+# ---------------------------------------------------------------------------
+#
+#   pipeline :api do
+#     plug :accepts, ["json"]
+#   end
+#
+#   scope "/api", OpenuiBackendWeb do
+#     pipe_through :api
+#     post "/chat", ChatController, :create
+#   end
+#
+# ---------------------------------------------------------------------------
+# CORS — lock the origin to the configured frontend (NOT a wildcard).
+# Add {:cors_plug, "~> 3.0"} to deps and plug it in the endpoint, before the
+# router, so the credentialed frontend origin is reflected explicitly:
+#
+#   plug CORSPlug,
+#     origin: [System.get_env("FRONTEND_ORIGIN") || "http://localhost:3000"],
+#     methods: ["POST", "OPTIONS"]
+# ---------------------------------------------------------------------------

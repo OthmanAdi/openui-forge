@@ -1,0 +1,253 @@
+// OpenUI backend handler — C# / ASP.NET Core Minimal API (.NET 10 LTS)
+//
+// This is a single-file, top-level Minimal API (Program.cs). It forwards
+// OpenAI's native Server-Sent Events stream VERBATIM to the browser:
+// the upstream already emits `data: {chunk}\n\n` lines terminated by
+// `data: [DONE]`, which is exactly what the React frontend's
+// `streamProtocol={openAIAdapter()}` expects. We never buffer the whole
+// response — each line is flushed as it arrives.
+//
+// -------------------------------------------------------------------------
+// Run instructions
+// -------------------------------------------------------------------------
+//   dotnet new web -n openui-backend        # scaffolds a Minimal API project
+//   cd openui-backend
+//   # replace the generated Program.cs with this file (rename to Program.cs)
+//   # place system-prompt.txt next to the .csproj (see System Prompt below)
+//   dotnet run                              # listens on http://localhost:5000
+//
+//   Frontend runs on http://localhost:3000 and POSTs to /api/chat.
+//
+// -------------------------------------------------------------------------
+// Dependency manifest — openui-backend.csproj
+// -------------------------------------------------------------------------
+//   <Project Sdk="Microsoft.NET.Sdk.Web">
+//     <PropertyGroup>
+//       <TargetFramework>net10.0</TargetFramework>
+//       <Nullable>enable</Nullable>
+//       <ImplicitUsings>enable</ImplicitUsings>
+//     </PropertyGroup>
+//   </Project>
+//
+//   No NuGet packages required. ASP.NET Core, System.Net.Http (HttpClient /
+//   IHttpClientFactory) and System.Text.Json all ship in the .NET 10 shared
+//   framework referenced by Microsoft.NET.Sdk.Web. .env files are not read
+//   automatically — export OPENAI_API_KEY in the environment (or use
+//   `dotnet user-secrets` / launchSettings.json for local dev).
+//
+// -------------------------------------------------------------------------
+// Environment variables
+// -------------------------------------------------------------------------
+//   OPENAI_API_KEY    (required)  provider API key, sent as Bearer token.
+//   OPENAI_BASE_URL   (optional)  default https://api.openai.com/v1 — point at
+//                                 any OpenAI-compatible provider here.
+//   OPENAI_MODEL      (optional)  default gpt-5.5
+//   FRONTEND_ORIGIN   (optional)  default http://localhost:3000 — CORS origin.
+//
+// Kestrel listens on http://localhost:5000 by default. To change the port,
+// set ASPNETCORE_URLS (e.g. ASPNETCORE_URLS=http://localhost:8080) or edit
+// Properties/launchSettings.json — that is the framework's port mechanism.
+// -------------------------------------------------------------------------
+
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// IHttpClientFactory: pooled, correctly-disposed HttpClient instances.
+// HttpClient.Timeout defaults to 100s; for a long-lived streaming proxy we
+// set it to Infinite and rely on client disconnects / cancellation instead.
+builder.Services.AddHttpClient("openai", client =>
+{
+    client.Timeout = Timeout.InfiniteTimeSpan;
+});
+
+// CORS: lock to the configured frontend origin. Do NOT use AllowAnyOrigin for
+// a credentialed setup — a wildcard would let any site call this backend and
+// burn through your provider API key.
+var frontendOrigin =
+    Environment.GetEnvironmentVariable("FRONTEND_ORIGIN") ?? "http://localhost:3000";
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins(frontendOrigin)
+              .WithMethods("POST", "OPTIONS")
+              .AllowAnyHeader());
+});
+
+var app = builder.Build();
+
+app.UseCors();
+
+// ---------------------------------------------------------------------------
+// Load the generated system prompt ONCE at startup, then prepend it as a
+// system message on every request. Fail fast if it's missing.
+// ---------------------------------------------------------------------------
+var promptPath = Path.Combine(AppContext.BaseDirectory, "system-prompt.txt");
+if (!File.Exists(promptPath))
+{
+    // Fall back to the project/run directory (dotnet run uses the project root).
+    promptPath = Path.Combine(Directory.GetCurrentDirectory(), "system-prompt.txt");
+}
+if (!File.Exists(promptPath))
+{
+    throw new FileNotFoundException(
+        "system-prompt.txt not found. Generate it with: " +
+        "npx @openuidev/cli generate ./src/lib/library.ts --out system-prompt.txt",
+        promptPath);
+}
+var systemPrompt = await File.ReadAllTextAsync(promptPath);
+
+var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+var baseUrl = (Environment.GetEnvironmentVariable("OPENAI_BASE_URL") ?? "https://api.openai.com/v1")
+    .TrimEnd('/');
+var model = Environment.GetEnvironmentVariable("OPENAI_MODEL") ?? "${MODEL}";
+
+// ---------------------------------------------------------------------------
+// POST /api/chat  { "messages": [ { "role": "...", "content": "..." } ] }
+// ---------------------------------------------------------------------------
+app.MapPost("/api/chat", async (ChatRequest req, IHttpClientFactory httpClientFactory, HttpContext ctx) =>
+{
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        return Results.Json(new { error = "OPENAI_API_KEY not set" }, statusCode: 500);
+    }
+    if (req.Messages is null || req.Messages.Length == 0)
+    {
+        return Results.Json(new { error = "messages must be a non-empty array" }, statusCode: 400);
+    }
+
+    // Prepend the server-side system prompt; never trust the client to supply it.
+    var messages = new List<ChatMessage>(req.Messages.Length + 1)
+    {
+        new("system", systemPrompt),
+    };
+    messages.AddRange(req.Messages);
+
+    var payload = JsonSerializer.Serialize(new OpenAiRequest(model, true, messages));
+
+    using var upstreamRequest = new HttpRequestMessage(
+        HttpMethod.Post, $"{baseUrl}/chat/completions")
+    {
+        Content = new StringContent(payload, Encoding.UTF8, "application/json"),
+    };
+    upstreamRequest.Headers.Add("Authorization", $"Bearer {apiKey}");
+
+    var client = httpClientFactory.CreateClient("openai");
+
+    // ResponseHeadersRead returns as soon as the headers arrive, so we read the
+    // body incrementally off the socket instead of buffering it into memory.
+    var upstream = await client.SendAsync(
+        upstreamRequest,
+        HttpCompletionOption.ResponseHeadersRead,
+        ctx.RequestAborted);
+
+    if (!upstream.IsSuccessStatusCode)
+    {
+        var errorBody = await upstream.Content.ReadAsStringAsync(ctx.RequestAborted);
+        upstream.Dispose();
+        return Results.Json(
+            new { error = $"OpenAI returned {(int)upstream.StatusCode}: {errorBody}" },
+            statusCode: (int)upstream.StatusCode);
+    }
+
+    // Stream the upstream SSE bytes through to the client, line by line.
+    // We forward each line verbatim (keeping the `data:` prefix, blank-line
+    // framing, and the trailing `data: [DONE]`) so openAIAdapter() can parse
+    // it. We do NOT use Results.Stream/CopyToAsync because that can buffer and
+    // delay flushes — we flush after every line so tokens appear as they arrive.
+    return Results.Extensions.SseProxy(upstream);
+});
+
+app.Run();
+
+// ---------------------------------------------------------------------------
+// SSE passthrough result. Reads the upstream stream with a StreamReader and
+// flushes each line to Response.Body immediately.
+//
+// Alternative (idiomatic .NET 10 typed SSE): if you parse each chunk into a
+// strongly-typed payload you can return
+//     TypedResults.ServerSentEvents(IAsyncEnumerable<SseItem<T>> events)
+// from System.Net.ServerSentEvents — the framework then writes the `data:`
+// prefix, `id:`/`event:` fields and `\n\n` framing for you. We keep the raw
+// passthrough here because the upstream is ALREADY valid SSE and re-framing it
+// would be redundant work.
+// ---------------------------------------------------------------------------
+static class ResultExtensions
+{
+    public static IResult SseProxy(this IResultExtensions _, HttpResponseMessage upstream)
+        => new SseProxyResult(upstream);
+}
+
+sealed class SseProxyResult(HttpResponseMessage upstream) : IResult
+{
+    public async Task ExecuteAsync(HttpContext httpContext)
+    {
+        var response = httpContext.Response;
+        response.StatusCode = 200;
+        response.ContentType = "text/event-stream";
+        response.Headers.CacheControl = "no-cache";
+        response.Headers.Connection = "keep-alive";
+        // Defeat response buffering by proxies / output formatters.
+        response.Headers["X-Accel-Buffering"] = "no";
+
+        try
+        {
+            await using var upstreamStream =
+                await upstream.Content.ReadAsStreamAsync(httpContext.RequestAborted);
+            using var reader = new StreamReader(upstreamStream, Encoding.UTF8);
+
+            // ReadLineAsync strips the line terminator; we re-add the SSE
+            // framing (`\n` after each line, plus the blank line that ends a
+            // `data:` event) so the bytes on the wire match what OpenAI emits.
+            while (await reader.ReadLineAsync(httpContext.RequestAborted) is { } line)
+            {
+                if (line.Length == 0)
+                {
+                    continue; // collapse blank lines; we re-emit our own framing
+                }
+
+                await response.WriteAsync(line + "\n", httpContext.RequestAborted);
+                if (line.StartsWith("data:", StringComparison.Ordinal))
+                {
+                    await response.WriteAsync("\n", httpContext.RequestAborted);
+                }
+                await response.Body.FlushAsync(httpContext.RequestAborted);
+
+                if (line == "data: [DONE]")
+                {
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Client navigated away / aborted the request — nothing to do.
+        }
+        finally
+        {
+            upstream.Dispose();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DTOs. The JsonPropertyName attributes pin the wire names to lowercase:
+// incoming binding is case-insensitive, but JsonSerializer.Serialize defaults
+// to PascalCase, and the OpenAI API requires lowercase role/content/model/etc.
+// (System.Text.Json source generation is optional; the reflection-based
+// serializer used here is fine for this small, fixed shape.)
+// ---------------------------------------------------------------------------
+record ChatMessage(
+    [property: JsonPropertyName("role")] string Role,
+    [property: JsonPropertyName("content")] string Content);
+
+record ChatRequest(
+    [property: JsonPropertyName("messages")] ChatMessage[] Messages);
+
+record OpenAiRequest(
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("stream")] bool Stream,
+    [property: JsonPropertyName("messages")] List<ChatMessage> Messages);
