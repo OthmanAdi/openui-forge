@@ -34,11 +34,11 @@ Read `references/adapter-matrix.md` for the full adapter details.
 - Install: `npm install openai`
 
 **Anthropic SDK (Claude):**
-- Frontend adapter: `openAIReadableStreamAdapter()`
+- Frontend adapter: `openAIAdapter()`
 - Frontend format: `openAIMessageFormat`
 - Read and adapt: `templates/api-route-anthropic.ts.template`
 - Install: `npm install @anthropic-ai/sdk`
-- Note: The backend converts Anthropic streaming events into OpenAI-compatible NDJSON
+- Note: The backend converts Anthropic streaming events into OpenAI-compatible SSE (`data: {json}\n\n` lines terminated by `data: [DONE]`)
 
 **Vercel AI SDK:**
 - Frontend: native (uses `useChat` or `processMessage`)
@@ -47,14 +47,15 @@ Read `references/adapter-matrix.md` for the full adapter details.
 - Note: Uses `streamText` + `toUIMessageStreamResponse()`
 
 **LangChain / LangGraph:**
-- Frontend adapter: `openAIReadableStreamAdapter()`
+- Frontend adapter: `openAIAdapter()`
 - Frontend format: `openAIMessageFormat`
 - Read and adapt: `templates/api-route-langchain.ts.template`
 - Install: `npm install @langchain/openai @langchain/core`
+- Note: The backend converts LangChain stream chunks into OpenAI-compatible SSE
 
 ### Non-JavaScript backends
 
-Frontend is always React with `openAIReadableStreamAdapter()`. Backend loads system-prompt.txt and streams the LLM response.
+Default: the backend emits SSE (`data: {json}\n\n`) and the frontend uses `openAIAdapter()`. An NDJSON variant (`openAIReadableStreamAdapter()`) is shown in `references/backend-patterns.md`; either works, as long as the frontend adapter matches the backend body. Backend loads system-prompt.txt and streams the LLM response.
 
 Read `references/backend-patterns.md` for complete examples.
 
@@ -102,7 +103,7 @@ Run `/openui:validate` to verify the full integration works.
 
 ## CRITICAL RULES
 
-- **NDJSON is the universal format.** For ALL non-OpenAI backends, the backend MUST output OpenAI-compatible NDJSON. Each line must be:
+- **Match the adapter to the backend body.** SSE (`data: {json}\n\n`, terminated by `data: [DONE]`) pairs with `openAIAdapter()` — the default for non-JS backends. Raw NDJSON (one JSON object per line, no `data:` prefix) pairs with `openAIReadableStreamAdapter()` — produced by OpenAI's `response.toReadableStream()` and the `backend-patterns.md` examples. Each chunk:
   ```json
   {"id":"...","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"token text"},"finish_reason":null}]}
   ```

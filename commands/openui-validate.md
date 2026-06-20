@@ -15,9 +15,9 @@ Run each check in order. For each one, output PASS or FAIL with details.
 **Pass:** All three core packages are installed (@openuidev/react-lang, @openuidev/react-headless, @openuidev/react-ui)
 **Fix if FAIL:** `npm install @openuidev/react-ui @openuidev/react-headless @openuidev/react-lang`
 
-### Check 2 — React >= 19
+### Check 2 — React >= 18.3.1 (19+ recommended)
 **How:** Run `npm ls react` and check the version
-**Pass:** React version is 19.x or higher
+**Pass:** React version is 18.3.1 or higher (peer range is `^18.3.1 || ^19.0.0`; 19+ recommended)
 **Fix if FAIL:** `npm install react@latest react-dom@latest`
 
 ### Check 3 — Component library exists
@@ -74,7 +74,7 @@ Present results as a checklist:
 OpenUI Validation Report
 ========================
 [PASS] 1. Dependencies installed
-[PASS] 2. React >= 19
+[PASS] 2. React >= 18.3.1 (19+ recommended)
 [PASS] 3. Component library exists — src/lib/library.ts
 [FAIL] 4. Zod .describe() on all props — 3 fields missing .describe() in WeatherCard
 [PASS] 5. System prompt exists — src/generated/system-prompt.txt

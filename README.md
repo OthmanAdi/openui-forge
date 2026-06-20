@@ -12,6 +12,9 @@ The cross-IDE, multi-stack agent skill for [OpenUI](https://www.openui.com), the
 [![GitHub stars](https://img.shields.io/github/stars/OthmanAdi/openui-forge)](https://github.com/OthmanAdi/openui-forge/stargazers)
 [![Skill Validation](https://github.com/OthmanAdi/openui-forge/actions/workflows/skill-validation.yml/badge.svg)](https://github.com/OthmanAdi/openui-forge/actions/workflows/skill-validation.yml)
 [![Website](https://img.shields.io/badge/website-openui--forge.here.now-E8850C)](https://spruce-prism-8yya.here.now/)
+[![Listed in OpenUI ADOPTERS.md](https://img.shields.io/badge/OpenUI-ADOPTERS.md-1f6feb)](https://github.com/thesysdev/openui/blob/main/ADOPTERS.md)
+
+> Listed in OpenUI's official [ADOPTERS.md](https://github.com/thesysdev/openui/blob/main/ADOPTERS.md) (the upstream list of projects using OpenUI; the file notes inclusion is not an endorsement by the maintainers).
 
 ---
 
@@ -23,8 +26,8 @@ OpenUI is a streaming-first generative UI framework. Models output a compact lin
 
 - Adds OpenUI to **existing** projects (the canonical `npx @openuidev/cli create` is greenfield-only).
 - Ships **non-JavaScript backend templates**: Python (FastAPI), Go (net/http), Rust (Axum).
-- Wires up **any LLM provider directly**: OpenAI, Anthropic, LangChain, Vercel AI SDK, plus any OpenAI-compatible endpoint (Gemini, OpenRouter, xAI, DeepSeek) via `OPENAI_BASE_URL`.
-- Mirrors to **11 agent platforms** beyond Claude Code so the same skill content is available in Cursor, Gemini CLI, Codex, Kiro, Continue, Factory, OpenCode, Pi, Mastra, and more.
+- Wires up **any LLM provider directly**: OpenAI, Anthropic, LangChain, Vercel AI SDK, plus any OpenAI-compatible endpoint (Gemini, OpenRouter, xAI, DeepSeek, Groq, Mistral, Together, Fireworks, Ollama, LM Studio) via `OPENAI_BASE_URL` (see [Provider routing](#provider-routing-openai_base_url)).
+- Mirrors skill content to additional agent platforms beyond Claude Code (Cursor, Gemini CLI, Codex, and more) using the `.agents/skills/` cross-tool standard.
 
 It complements the official [`thesysdev/openui` skill](https://github.com/thesysdev/openui/tree/main/skills/openui), which targets a Next.js + OpenAI scaffold. Use this one when your stack does not match that default.
 
@@ -48,6 +51,29 @@ npx skills add OthmanAdi/openui-forge --skill openui-forge-rust       -g
 # Chinese localization
 npx skills add OthmanAdi/openui-forge --skill openui-forge-zh         -g
 ```
+
+**Requirements:** Node.js >= 22 (24 LTS recommended). React peer `^18.3.1 || ^19.0.0` (`react-dom` peer `^18.0.0 || ^19.0.0`).
+
+---
+
+## Provider routing (`OPENAI_BASE_URL`)
+
+Any OpenAI-compatible endpoint works by pointing the OpenAI client at a different base URL. Set `OPENAI_BASE_URL` (the exact env var; the old `OPENAI_API_BASE` was removed in `openai` v6) and `OPENAI_MODEL`, keep your provider's API key in the standard slot. Example model ids are current as of June 2026; check each provider's catalog for the live list.
+
+| Provider | `OPENAI_BASE_URL` | Example model id |
+|----------|-------------------|------------------|
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.5-flash` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-5.5` |
+| xAI (Grok) | `https://api.x.ai/v1` | `grok-4.3` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
+| Groq | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-large-latest` |
+| Together | `https://api.together.ai/v1` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
+| Fireworks | `https://api.fireworks.ai/inference/v1` | `accounts/fireworks/models/llama-v3p1-70b-instruct` |
+| Ollama (local) | `http://localhost:11434/v1/` | `llama3.2` (any placeholder API key) |
+| LM Studio (local) | `http://localhost:1234/v1` | loaded model name (any placeholder API key) |
+
+> **Azure OpenAI is not a generic drop-in.** Use `OPENAI_BASE_URL=https://YOUR-RESOURCE.openai.azure.com/openai/v1/`, set `OPENAI_MODEL` to your **deployment name** (not a catalog id), and use the `AzureOpenAI` client. The legacy path also needs `?api-version=`. Base-URL routing covers chat completions only, not full API parity.
 
 ---
 
@@ -77,6 +103,8 @@ npx skills add OthmanAdi/openui-forge --skill openui-forge-zh         -g
 | Rust (Axum) | Rust | OpenAI-compatible HTTP | SSE via Axum `Sse<...>` | `openAIAdapter()` |
 
 > Adapter selection follows one rule: match the backend's response format. SSE (`data: {json}\n\n`) pairs with `openAIAdapter()`; NDJSON (one raw JSON per line) pairs with `openAIReadableStreamAdapter()`.
+
+**Frontend runtimes:** all stacks above use the React binding, which is the most complete. OpenUI Lang also ships framework bindings for Vue 3 (`@openuidev/vue-lang`, peer `vue >= 3.5.0`) and Svelte 5 (`@openuidev/svelte-lang`, peer `svelte >= 5.0.0`), both built on the framework-agnostic `@openuidev/lang-core` substrate.
 
 ---
 
@@ -109,9 +137,11 @@ Define components with Zod schemas + React renderers, assemble them into a libra
 
 ## Supported agent platforms
 
-Skill content is mirrored to each platform's expected directory by `scripts/sync-platforms.{sh,ps1}`, so installing the skill on any of these picks up the same source-of-truth content:
+`.agents/skills/` is the cross-tool standard directory, and it is the canonical source of truth. `scripts/sync-platforms.{sh,ps1}` mirrors that content to each tool's own directory so the same skill is available across:
 
 Claude Code, Cursor, Gemini CLI, Kiro, Codex CLI, CodeBuddy, Continue, Factory, OpenCode, Pi, Mastra.
+
+> Note: not every tool reads a `skills/` folder. Kiro uses `.kiro/steering/` and Continue uses `.continue/rules/`, so the sync adapts the content into each tool's actual convention rather than assuming a uniform `skills/` path.
 
 ---
 
