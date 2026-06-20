@@ -1,7 +1,11 @@
-# Agent working notes (audit plans, findings, mission) — kept locally, not part of the skill
+# Agent working notes (audit plans, findings, mission, planning) — kept locally, not part of the skill
 .agents/AUDIT_PLAN.md
 .agents/FINDINGS.md
 .agents/MISSION.md
+.agents/task_plan.md
+.agents/findings.md
+.agents/progress.md
+.agents/verified-facts.md
 
 # Windows / shell debris
 *.stackdump
@@ -26,3 +30,20 @@ dist/
 
 # here.now local publish state (slug, claim token cache — never commit)
 .herenow/
+
+# Third-party taste-skill collection (LeonXlnx/taste-skill) installed locally for
+# the site redesign. Lands in the agent mirror dirs; NOT part of openui-forge.
+skills-lock.json
+**/skills/brandkit/
+**/skills/design-taste-frontend/
+**/skills/design-taste-frontend-v1/
+**/skills/full-output-enforcement/
+**/skills/gpt-taste/
+**/skills/high-end-visual-design/
+**/skills/image-to-code/
+**/skills/imagegen-frontend-mobile/
+**/skills/imagegen-frontend-web/
+**/skills/industrial-brutalist-ui/
+**/skills/minimalist-ui/
+**/skills/redesign-existing-projects/
+**/skills/stitch-design-taste/
