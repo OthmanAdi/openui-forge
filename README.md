@@ -6,7 +6,7 @@
 
 The cross-IDE, multi-stack agent skill for [OpenUI](https://www.openui.com), the Open Standard for Generative UI. Drop OpenUI into any existing codebase, in any LLM provider, in any backend language.
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/OthmanAdi/openui-forge)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/OthmanAdi/openui-forge)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![skills.sh](https://img.shields.io/badge/skills.sh-OthmanAdi%2Fopenui--forge-orange)](https://skills.sh/OthmanAdi/openui-forge)
 [![GitHub stars](https://img.shields.io/github/stars/OthmanAdi/openui-forge)](https://github.com/OthmanAdi/openui-forge/stargazers)
@@ -25,7 +25,7 @@ OpenUI is a streaming-first generative UI framework. Models output a compact lin
 `openui-forge` is an agent skill that handles the parts the official OpenUI scaffolder doesn't:
 
 - Adds OpenUI to **existing** projects (the canonical `npx @openuidev/cli create` is greenfield-only).
-- Ships **non-JavaScript backend templates**: Python (FastAPI), Go (net/http), Rust (Axum).
+- Ships **non-JavaScript backend templates**: Python (FastAPI), Go (net/http), Rust (Axum), C# (ASP.NET Core), Java (Spring WebFlux), Ruby (Rails), PHP (Laravel), and Elixir (Phoenix).
 - Wires up **any LLM provider directly**: OpenAI, Anthropic, LangChain, Vercel AI SDK, plus any OpenAI-compatible endpoint (Gemini, OpenRouter, xAI, DeepSeek, Groq, Mistral, Together, Fireworks, Ollama, LM Studio) via `OPENAI_BASE_URL` (see [Provider routing](#provider-routing-openai_base_url)).
 - Mirrors skill content to additional agent platforms beyond Claude Code (Cursor, Gemini CLI, Codex, and more) using the `.agents/skills/` cross-tool standard.
 
@@ -48,6 +48,13 @@ npx skills add OthmanAdi/openui-forge --skill openui-forge-python     -g
 npx skills add OthmanAdi/openui-forge --skill openui-forge-go         -g
 npx skills add OthmanAdi/openui-forge --skill openui-forge-rust       -g
 
+# Additional backend languages
+npx skills add OthmanAdi/openui-forge --skill openui-forge-csharp     -g
+npx skills add OthmanAdi/openui-forge --skill openui-forge-java       -g
+npx skills add OthmanAdi/openui-forge --skill openui-forge-ruby       -g
+npx skills add OthmanAdi/openui-forge --skill openui-forge-php        -g
+npx skills add OthmanAdi/openui-forge --skill openui-forge-elixir     -g
+
 # Chinese localization
 npx skills add OthmanAdi/openui-forge --skill openui-forge-zh         -g
 ```
@@ -62,11 +69,11 @@ Any OpenAI-compatible endpoint works by pointing the OpenAI client at a differen
 
 | Provider | `OPENAI_BASE_URL` | Example model id |
 |----------|-------------------|------------------|
-| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.5-flash` |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` |
 | OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-5.5` |
-| xAI (Grok) | `https://api.x.ai/v1` | `grok-4.3` |
+| xAI (Grok) | `https://api.x.ai/v1` | `grok-4` |
 | DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
-| Groq | `https://api.groq.com/openai/v1` | `openai/gpt-oss-120b` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
 | Mistral | `https://api.mistral.ai/v1` | `mistral-large-latest` |
 | Together | `https://api.together.ai/v1` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
 | Fireworks | `https://api.fireworks.ai/inference/v1` | `accounts/fireworks/models/llama-v3p1-70b-instruct` |
@@ -101,6 +108,11 @@ Any OpenAI-compatible endpoint works by pointing the OpenAI client at a differen
 | Python (FastAPI) | Python | OpenAI / Anthropic | SSE | `openAIAdapter()` |
 | Go (`net/http`) | Go | OpenAI-compatible HTTP | SSE passthrough | `openAIAdapter()` |
 | Rust (Axum) | Rust | OpenAI-compatible HTTP | SSE via Axum `Sse<...>` | `openAIAdapter()` |
+| C# (ASP.NET Core) | C# | OpenAI-compatible HTTP | SSE passthrough | `openAIAdapter()` |
+| Java (Spring WebFlux) | Java | OpenAI-compatible HTTP | SSE | `openAIAdapter()` |
+| Ruby (Rails) | Ruby | OpenAI-compatible HTTP | SSE passthrough | `openAIAdapter()` |
+| PHP (Laravel) | PHP | OpenAI-compatible HTTP | SSE passthrough | `openAIAdapter()` |
+| Elixir (Phoenix) | Elixir | OpenAI-compatible HTTP | SSE passthrough | `openAIAdapter()` |
 
 > Adapter selection follows one rule: match the backend's response format. SSE (`data: {json}\n\n`) pairs with `openAIAdapter()`; NDJSON (one raw JSON per line) pairs with `openAIReadableStreamAdapter()`.
 
