@@ -1,0 +1,59 @@
+{
+  "name": "openui-forge",
+  "version": "1.0.0",
+  "description": "Cross-IDE, multi-stack agent skill for OpenUI (the Open Standard for Generative UI). Core skill plus stack variants for OpenAI, Anthropic, LangChain, Vercel, Python, Go, Rust, C#, Java, Ruby, PHP, Elixir.",
+  "keywords": [
+    "pi-package",
+    "pi-skill",
+    "openui",
+    "generative-ui",
+    "agent-skill",
+    "claude-code",
+    "skill"
+  ],
+  "pi": {
+    "skills": [
+      ".pi/skills/brandkit/SKILL.md",
+      ".pi/skills/design-taste-frontend-v1/SKILL.md",
+      ".pi/skills/design-taste-frontend/SKILL.md",
+      ".pi/skills/full-output-enforcement/SKILL.md",
+      ".pi/skills/gpt-taste/SKILL.md",
+      ".pi/skills/high-end-visual-design/SKILL.md",
+      ".pi/skills/image-to-code/SKILL.md",
+      ".pi/skills/imagegen-frontend-mobile/SKILL.md",
+      ".pi/skills/imagegen-frontend-web/SKILL.md",
+      ".pi/skills/industrial-brutalist-ui/SKILL.md",
+      ".pi/skills/minimalist-ui/SKILL.md",
+      ".pi/skills/openui-forge-anthropic/SKILL.md",
+      ".pi/skills/openui-forge-csharp/SKILL.md",
+      ".pi/skills/openui-forge-elixir/SKILL.md",
+      ".pi/skills/openui-forge-go/SKILL.md",
+      ".pi/skills/openui-forge-java/SKILL.md",
+      ".pi/skills/openui-forge-langchain/SKILL.md",
+      ".pi/skills/openui-forge-openai/SKILL.md",
+      ".pi/skills/openui-forge-php/SKILL.md",
+      ".pi/skills/openui-forge-python/SKILL.md",
+      ".pi/skills/openui-forge-ruby/SKILL.md",
+      ".pi/skills/openui-forge-rust/SKILL.md",
+      ".pi/skills/openui-forge-vercel/SKILL.md",
+      ".pi/skills/openui-forge-zh/SKILL.md",
+      ".pi/skills/openui-forge/SKILL.md",
+      ".pi/skills/redesign-existing-projects/SKILL.md",
+      ".pi/skills/stitch-design-taste/SKILL.md"
+    ]
+  },
+  "files": [
+    "README.md",
+    ".pi/skills/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OthmanAdi/openui-forge.git"
+  },
+  "author": "Ahmad Othman Ammar Adi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/OthmanAdi/openui-forge/issues"
+  },
+  "homepage": "https://github.com/OthmanAdi/openui-forge#readme"
+}

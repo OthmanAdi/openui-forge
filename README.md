@@ -59,6 +59,12 @@ npx skills add OthmanAdi/openui-forge --skill openui-forge-elixir     -g
 npx skills add OthmanAdi/openui-forge --skill openui-forge-zh         -g
 ```
 
+Or from npm, which carries all 27 bundled skills in one package ([openui-forge](https://www.npmjs.com/package/openui-forge)):
+
+```bash
+pi install npm:openui-forge
+```
+
 **Requirements:** Node.js >= 22 (24 LTS recommended). React peer `^18.3.1 || ^19.0.0` (`react-dom` peer `^18.0.0 || ^19.0.0`).
 
 ---
