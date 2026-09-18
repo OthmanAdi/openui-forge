@@ -11,8 +11,16 @@ json_bool()  { [[ "$1" == "true" ]] && echo "true" || echo "false"; }
 json_str()   { printf '"%s"' "${1//\"/\\\"}"; }
 json_null()  { echo "null"; }
 
+# Build-output dirs hold bundled copies of src (e.g. .next/dev/server/chunks/..._._.js);
+# without these excludes they win the "first hit" race and report paths that are not sources.
+EXCL=(--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude-dir=dist
+      --exclude-dir=build --exclude-dir=out --exclude-dir=.turbo --exclude-dir=.vercel --exclude-dir=coverage)
+
 # Safe grep: returns empty on failure, never errors out
-sgrep() { grep -r "$@" 2>/dev/null || true; }
+sgrep() { grep -r "${EXCL[@]}" "$@" 2>/dev/null || true; }
+
+# Drop hits that live inside a build-output dir (used after sgrep/find pipes)
+skip_build() { grep -vE "/(node_modules|\.next|dist|build|out|\.turbo|\.vercel|coverage)/" || true; }
 
 # ── 1. package.json ─────────────────────────────────────────────────────────
 
@@ -69,7 +77,7 @@ fi
 
 has_system_prompt=false
 prompt_path="null"
-prompt_hit=$(find . -name "system-prompt.txt" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -n1)
+prompt_hit=$(find . -name "system-prompt.txt" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" -a -not -path "*/.turbo/*" \) 2>/dev/null | head -n1)
 if [[ -n "$prompt_hit" && -s "$prompt_hit" ]]; then
     has_system_prompt=true
     prompt_path=$(json_str "$prompt_hit")
@@ -79,7 +87,7 @@ fi
 
 has_backend_route=false
 backend_path="null"
-route_hit=$(find . -path "*/api/chat/route.*" -not -path "*/node_modules/*" 2>/dev/null | head -n1)
+route_hit=$(find . -path "*/api/chat/route.*" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" -a -not -path "*/.turbo/*" \) 2>/dev/null | head -n1)
 if [[ -n "$route_hit" ]]; then
     has_backend_route=true
     backend_path=$(json_str "$route_hit")
@@ -89,7 +97,7 @@ fi
 
 has_frontend_page=false
 page_hit=$(sgrep -lE "(FullScreen|Copilot|ChatProvider)" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" . \
-    | grep -v node_modules | head -n1 || true)
+    | skip_build | head -n1 || true)
 if [[ -n "$page_hit" ]]; then
     has_frontend_page=true
 fi
@@ -98,7 +106,7 @@ fi
 
 has_css_imports=false
 css_hit=$(sgrep -l "@openuidev/react-ui" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.css" . \
-    | grep -v node_modules | head -n1 || true)
+    | skip_build | head -n1 || true)
 if [[ -n "$css_hit" ]]; then
     has_css_imports=true
 fi
@@ -106,16 +114,16 @@ fi
 # ── 13. Backend language ────────────────────────────────────────────────────
 
 backend_language="typescript"  # default assumption for Node projects
-if find . -maxdepth 3 -name "*.py" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    py_hit=$(sgrep -lE "(fastapi|flask|openai|anthropic|langchain)" --include="*.py" . | grep -v node_modules | head -n1 || true)
+if find . -maxdepth 3 -name "*.py" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" -a -not -path "*/.turbo/*" \) 2>/dev/null | grep -q .; then
+    py_hit=$(sgrep -lE "(fastapi|flask|openai|anthropic|langchain)" --include="*.py" . | skip_build | head -n1 || true)
     [[ -n "$py_hit" ]] && backend_language="python"
 fi
-if find . -maxdepth 3 -name "*.go" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    go_hit=$(sgrep -lE "(net/http|gin|echo|fiber)" --include="*.go" . | grep -v node_modules | head -n1 || true)
+if find . -maxdepth 3 -name "*.go" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" -a -not -path "*/.turbo/*" \) 2>/dev/null | grep -q .; then
+    go_hit=$(sgrep -lE "(net/http|gin|echo|fiber)" --include="*.go" . | skip_build | head -n1 || true)
     [[ -n "$go_hit" ]] && backend_language="go"
 fi
-if find . -maxdepth 3 -name "*.rs" -not -path "*/node_modules/*" 2>/dev/null | grep -q .; then
-    rs_hit=$(sgrep -lE "(actix|axum|rocket|hyper)" --include="*.rs" . | grep -v node_modules | head -n1 || true)
+if find . -maxdepth 3 -name "*.rs" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" -a -not -path "*/.turbo/*" \) 2>/dev/null | grep -q .; then
+    rs_hit=$(sgrep -lE "(actix|axum|rocket|hyper)" --include="*.rs" . | skip_build | head -n1 || true)
     [[ -n "$rs_hit" ]] && backend_language="rust"
 fi
 
@@ -123,7 +131,7 @@ fi
 
 # Use a real grep here (not sgrep): sgrep ends in `|| true` and always returns 0,
 # which would make every branch below match. ts_has returns non-zero on no match.
-ts_has() { grep -rqE "$1" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null; }
+ts_has() { grep -rqE "$1" "${EXCL[@]}" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null; }
 
 llm_provider="unknown"
 if ts_has "from ['\"]openai['\"]|require\(['\"]openai['\"]"; then

@@ -27,6 +27,10 @@ function Warn($msg) {
     $script:passed++
 }
 
+# Build-output dirs hold bundled copies of src (.next/dev/server/chunks/...js); without these
+# excludes they win the "first hit" race and report paths that are not real sources.
+$script:SkipBuild = '[\\\/](node_modules|\.git|\.next|dist|build|out|\.turbo|\.vercel|coverage)[\\\/]'
+
 function Safe-SelectString {
     param(
         [string]$Pattern,
@@ -35,7 +39,7 @@ function Safe-SelectString {
     )
     try {
         Get-ChildItem -Path $Path -Recurse -Include $Include -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' -and $_.FullName -notmatch '[\\\/]\.git[\\\/]' } |
+            Where-Object { $_.FullName -notmatch $script:SkipBuild } |
             Select-String -Pattern $Pattern -ErrorAction SilentlyContinue
     } catch {
         $null
@@ -136,7 +140,7 @@ if ($libFile) {
 # ── Check 5: system-prompt.txt ──────────────────────────────────────────────
 
 $promptFiles = Get-ChildItem -Path "." -Recurse -Filter "system-prompt.txt" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' -and $_.FullName -notmatch '[\\\/]\.git[\\\/]' }
+    Where-Object { $_.FullName -notmatch $script:SkipBuild }
 
 if ($promptFiles) {
     $promptFile = $promptFiles | Select-Object -First 1
@@ -155,7 +159,7 @@ if ($promptFiles) {
 # ── Check 6: Backend route ──────────────────────────────────────────────────
 
 $routeFiles = Get-ChildItem -Path "." -Recurse -Include "route.ts","route.js" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -match '[\\\/]api[\\\/]chat[\\\/]' -and $_.FullName -notmatch '[\\\/]node_modules[\\\/]' }
+    Where-Object { $_.FullName -match '[\\\/]api[\\\/]chat[\\\/]' -and $_.FullName -notmatch $script:SkipBuild }
 
 if ($routeFiles) {
     $routeRel = Relative-Path ($routeFiles | Select-Object -First 1).FullName
@@ -230,7 +234,7 @@ if ($adapterCount -eq 0) {
 $corsHits = Safe-SelectString -Pattern "(Access-Control-Allow-Origin|cors|CORS)" -Path "." -Include @("*.ts","*.js","*.py","*.go")
 
 $separateBackend = Get-ChildItem -Path "." -Recurse -Include "server.ts","server.js","main.py","main.go" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' } |
+    Where-Object { $_.FullName -notmatch $script:SkipBuild } |
     Select-Object -First 1
 
 if ($separateBackend) {

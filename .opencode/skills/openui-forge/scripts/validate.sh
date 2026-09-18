@@ -28,8 +28,12 @@ warn() {
     ((passed++))
 }
 
-# Safe grep wrapper
-sgrep() { grep -r "$@" 2>/dev/null || true; }
+# Safe grep wrapper — build-output dirs (.next/dist/build/...) hold bundled copies of src that
+# otherwise win the "first hit" race and report non-source paths.
+EXCL=(--exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude-dir=dist
+      --exclude-dir=build --exclude-dir=out --exclude-dir=.turbo --exclude-dir=.vercel --exclude-dir=coverage)
+sgrep() { grep -r "${EXCL[@]}" "$@" 2>/dev/null || true; }
+skip_build() { grep -vE "/(node_modules|\.next|dist|build|out|\.turbo|\.vercel|coverage)/" || true; }
 
 # ── Check 1: @openuidev packages installed ──────────────────────────────────
 
@@ -67,7 +71,7 @@ fi
 # ── Check 3: createLibrary call ─────────────────────────────────────────────
 
 lib_file=$(sgrep -rl "createLibrary" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . \
-    | grep -v node_modules | head -n1)
+    | skip_build | head -n1)
 
 if [[ -n "$lib_file" ]]; then
     pass "Component library found at $lib_file"
@@ -80,7 +84,7 @@ fi
 if [[ -n "$lib_file" ]]; then
     # Look in the library file and nearby files for zod schemas
     zod_files=$(sgrep -rl "z\.\(object\|string\|number\|boolean\|array\|enum\)" --include="*.ts" --include="*.tsx" . \
-        | grep -v node_modules || true)
+        | skip_build || true)
     if [[ -n "$zod_files" ]]; then
         has_describe=$(echo "$zod_files" | while read -r f; do
             grep -l '\.describe(' "$f" 2>/dev/null
@@ -99,7 +103,7 @@ fi
 
 # ── Check 5: system-prompt.txt ──────────────────────────────────────────────
 
-prompt_file=$(find . -name "system-prompt.txt" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | head -n1)
+prompt_file=$(find . -name "system-prompt.txt" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" \) 2>/dev/null | head -n1)
 
 if [[ -n "$prompt_file" && -s "$prompt_file" ]]; then
     line_count=$(wc -l < "$prompt_file" | tr -d ' ')
@@ -112,14 +116,14 @@ fi
 
 # ── Check 6: Backend route ──────────────────────────────────────────────────
 
-route_file=$(find . -path "*/api/chat/route.*" -not -path "*/node_modules/*" 2>/dev/null | head -n1)
+route_file=$(find . -path "*/api/chat/route.*" \( -not -path "*/node_modules/*" -a -not -path "*/.git/*" -a -not -path "*/.next/*" -a -not -path "*/dist/*" -a -not -path "*/build/*" -a -not -path "*/out/*" \) 2>/dev/null | head -n1)
 
 if [[ -n "$route_file" ]]; then
     pass "Backend route found at $route_file"
 else
     # Also check for non-Next.js backends
     alt_backend=$(sgrep -rl "POST.*chat\|/api/chat\|chat.*endpoint" --include="*.ts" --include="*.js" --include="*.py" --include="*.go" . \
-        | grep -v node_modules | head -n1)
+        | skip_build | head -n1)
     if [[ -n "$alt_backend" ]]; then
         pass "Backend endpoint found at $alt_backend (non-standard location)"
     else
@@ -130,7 +134,7 @@ fi
 # ── Check 7: Frontend page ──────────────────────────────────────────────────
 
 page_file=$(sgrep -rlE "(FullScreen|Copilot|ChatProvider)" --include="*.tsx" --include="*.jsx" --include="*.ts" --include="*.js" . \
-    | grep -v node_modules | head -n1)
+    | skip_build | head -n1)
 
 if [[ -n "$page_file" ]]; then
     components_found=""
@@ -148,7 +152,7 @@ fi
 # ── Check 8: CSS imports ────────────────────────────────────────────────────
 
 css_file=$(sgrep -rl "@openuidev/react-ui" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.css" . \
-    | grep -v node_modules | head -n1)
+    | skip_build | head -n1)
 
 if [[ -n "$css_file" ]]; then
     pass "OpenUI CSS imports found in $css_file"
@@ -159,10 +163,10 @@ fi
 # ── Check 9: Adapter consistency ────────────────────────────────────────────
 
 # Detect which adapters are referenced
-openai_refs=$(sgrep -c "from ['\"]openai['\"]" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
-anthropic_refs=$(sgrep -c "@anthropic-ai/sdk" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
-langchain_refs=$(sgrep -c "@langchain/" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
-vercel_refs=$(sgrep -c "from ['\"]ai['\"]" --include="*.ts" --include="*.js" . | grep -v node_modules | grep -v ":0$" | wc -l | tr -d ' ')
+openai_refs=$(sgrep -c "from ['\"]openai['\"]" --include="*.ts" --include="*.js" . | skip_build | grep -v ":0$" | wc -l | tr -d ' ')
+anthropic_refs=$(sgrep -c "@anthropic-ai/sdk" --include="*.ts" --include="*.js" . | skip_build | grep -v ":0$" | wc -l | tr -d ' ')
+langchain_refs=$(sgrep -c "@langchain/" --include="*.ts" --include="*.js" . | skip_build | grep -v ":0$" | wc -l | tr -d ' ')
+vercel_refs=$(sgrep -c "from ['\"]ai['\"]" --include="*.ts" --include="*.js" . | skip_build | grep -v ":0$" | wc -l | tr -d ' ')
 
 adapter_count=0
 adapter_names=""
@@ -183,11 +187,11 @@ fi
 
 # Only relevant when backend and frontend appear to be on different ports/origins
 cors_hit=$(sgrep -rlE "(Access-Control-Allow-Origin|cors|CORS)" --include="*.ts" --include="*.js" --include="*.py" --include="*.go" . \
-    | grep -v node_modules | head -n1)
+    | skip_build | head -n1)
 
 # Check if there's a separate backend config suggesting cross-origin setup
 separate_backend=$(find . -name "server.ts" -o -name "server.js" -o -name "main.py" -o -name "main.go" 2>/dev/null \
-    | grep -v node_modules | head -n1)
+    | skip_build | head -n1)
 
 if [[ -n "$separate_backend" ]]; then
     if [[ -n "$cors_hit" ]]; then

@@ -85,6 +85,43 @@ case "$(react_line '^19.0.0')" in *"[PASS]"*) pass "react 19.0.0 passes" ;; *) f
 case "$(react_line '18.3.1')"  in *"[PASS]"*) pass "react 18.3.1 passes" ;; *) fail "react 18.3.1 should pass" ;; esac
 case "$(react_line '18.2.0')"  in *"[FAIL]"*) pass "react 18.2.0 fails"  ;; *) fail "react 18.2.0 should fail" ;; esac
 
+echo "== build output (.next/dist/build/out) must never be reported as a source path =="
+
+# A build tree holds bundled copies of src. Detection must ignore it: before the fix these
+# fixtures reported the build path (and true) where the repo has no source file at all.
+make_build_only() { # dir
+  mkdir -p "$1/.next/dev/server/chunks" "$1/dist"
+  echo 'export const lib = createLibrary({name:"bundle"})' > "$1/.next/dev/server/chunks/app_abc._.js"
+  echo 'import { ChatProvider } from "@openuidev/react-ui"' > "$1/dist/page-bundle.js"
+  echo 'system prompt body' > "$1/.next/dev/server/chunks/system-prompt.txt"
+}
+
+t=$(mktemp -d); make_build_only "$t"; out=$(cd "$t" && bash "$DETECT"); ec=$?
+check "exit 0 (build-only fixture)" "0" "$ec"
+check "build-only: has_component_library=false" "false" "$(printf '%s' "$out" | field has_component_library)"
+check "build-only: library_path empty" "" "$(printf '%s' "$out" | field library_path)"
+check "build-only: has_frontend_page=false" "false" "$(printf '%s' "$out" | field has_frontend_page)"
+check "build-only: has_system_prompt=false" "false" "$(printf '%s' "$out" | field has_system_prompt)"
+rm -rf "$t"
+
+# Build tree plus real sources: the reported paths must be the fixture's real files,
+# never the earlier-sorting bundled copies under .next/ or dist/.
+t=$(mktemp -d); make_build_only "$t"; make_next_openai "$t"; out=$(cd "$t" && bash "$DETECT")
+check "mixed: library_path is the source file" "./src/lib/library.ts" "$(printf '%s' "$out" | field library_path)"
+check "mixed: prompt_path is the source file" "./src/generated/system-prompt.txt" "$(printf '%s' "$out" | field prompt_path)"
+check "mixed: backend_path is the source file" "./app/api/chat/route.ts" "$(printf '%s' "$out" | field backend_path)"
+check "mixed: has_component_library=true" "true" "$(printf '%s' "$out" | field has_component_library)"
+rm -rf "$t"
+
+# validate.sh: a component library that exists only in build output must not pass.
+t=$(mktemp -d); make_build_only "$t"
+vout=$(cd "$t" && bash "$VALIDATE" 2>&1)
+case "$vout" in
+  *"[PASS] Component library found"*) fail "validate: component library must not be found in build output" ;;
+  *) pass "validate: build-output component library ignored" ;;
+esac
+rm -rf "$t"
+
 echo ""
 if [[ "$fails" -eq 0 ]]; then
   echo "All detection/validation tests passed."

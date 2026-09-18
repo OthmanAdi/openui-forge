@@ -6,6 +6,10 @@ $ErrorActionPreference = "SilentlyContinue"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+# Build-output dirs hold bundled copies of src (.next/dev/server/chunks/...js); without
+# these excludes they win the "first hit" race and report paths that are not real sources.
+$script:SkipBuild = '[\\\/](node_modules|\.git|\.next|dist|build|out|\.turbo|\.vercel|coverage)[\\\/]'
+
 function Safe-SelectString {
     param(
         [string]$Pattern,
@@ -14,7 +18,7 @@ function Safe-SelectString {
     )
     try {
         Get-ChildItem -Path $Path -Recurse -Include $Include -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' -and $_.FullName -notmatch '[\\\/]\.git[\\\/]' } |
+            Where-Object { $_.FullName -notmatch $script:SkipBuild } |
             Select-String -Pattern $Pattern -ErrorAction SilentlyContinue
     } catch {
         $null
@@ -87,7 +91,7 @@ if ($libHits) {
 $hasSystemPrompt = $false
 $promptPath = $null
 $promptHits = Get-ChildItem -Path "." -Recurse -Filter "system-prompt.txt" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' -and $_.FullName -notmatch '[\\\/]\.git[\\\/]' }
+    Where-Object { $_.FullName -notmatch $script:SkipBuild }
 
 if ($promptHits) {
     $firstPrompt = $promptHits | Select-Object -First 1
@@ -103,7 +107,7 @@ if ($promptHits) {
 $hasBackendRoute = $false
 $backendPath = $null
 $routeHits = Get-ChildItem -Path "." -Recurse -Include "route.ts","route.js" -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -match '[\\\/]api[\\\/]chat[\\\/]' -and $_.FullName -notmatch '[\\\/]node_modules[\\\/]' }
+    Where-Object { $_.FullName -match '[\\\/]api[\\\/]chat[\\\/]' -and $_.FullName -notmatch $script:SkipBuild }
 
 if ($routeHits) {
     $hasBackendRoute = $true
@@ -132,21 +136,21 @@ if ($cssHits) {
 $backendLanguage = "typescript"
 
 $pyFiles = Get-ChildItem -Path "." -Recurse -Include "*.py" -Depth 3 -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' }
+    Where-Object { $_.FullName -notmatch $script:SkipBuild }
 if ($pyFiles) {
     $pyHits = $pyFiles | Select-String -Pattern "(fastapi|flask|openai|anthropic|langchain)" -ErrorAction SilentlyContinue
     if ($pyHits) { $backendLanguage = "python" }
 }
 
 $goFiles = Get-ChildItem -Path "." -Recurse -Include "*.go" -Depth 3 -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' }
+    Where-Object { $_.FullName -notmatch $script:SkipBuild }
 if ($goFiles) {
     $goHits = $goFiles | Select-String -Pattern "(net/http|gin|echo|fiber)" -ErrorAction SilentlyContinue
     if ($goHits) { $backendLanguage = "go" }
 }
 
 $rsFiles = Get-ChildItem -Path "." -Recurse -Include "*.rs" -Depth 3 -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '[\\\/]node_modules[\\\/]' }
+    Where-Object { $_.FullName -notmatch $script:SkipBuild }
 if ($rsFiles) {
     $rsHits = $rsFiles | Select-String -Pattern "(actix|axum|rocket|hyper)" -ErrorAction SilentlyContinue
     if ($rsHits) { $backendLanguage = "rust" }
